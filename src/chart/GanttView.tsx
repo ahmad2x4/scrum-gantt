@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import * as am5 from "@amcharts/amcharts5";
 import * as am5gantt from "@amcharts/amcharts5/gantt";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
+import am5themes_Dark from "@amcharts/amcharts5/themes/Dark";
 import type { Store } from "../core/store";
 import { project, type GanttTask } from "./projection";
 import { ingestTasks, isEcho } from "./ingest";
@@ -20,7 +21,16 @@ export function GanttView({ store }: { store: Store }) {
     if (!divRef.current) return;
 
     const root = am5.Root.new(divRef.current);
-    root.setThemes([am5themes_Animated.new(root)]);
+
+    // amCharts renders to canvas, so CSS cannot restyle chart internals: a dark
+    // page without the Dark theme leaves labels and grid nearly invisible.
+    // Follow the system preference, which is what the page CSS does too.
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.setThemes(
+      prefersDark
+        ? [am5themes_Animated.new(root), am5themes_Dark.new(root)]
+        : [am5themes_Animated.new(root)],
+    );
 
     const doc0 = store.get();
     const chart = root.container.children.push(
