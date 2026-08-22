@@ -32,9 +32,6 @@ import {
 import { loadPickerApi, openPicker } from "./storage/picker";
 import { loadDraft } from "./storage/localDraft";
 
-/** One button press worth of zoom. */
-const ZOOM_STEP = 1.6;
-
 export default function App() {
   const store = useMemo(
     () => createStore(loadDraft()?.doc ?? emptyPlan("Untitled plan")),
@@ -173,8 +170,6 @@ export default function App() {
         onSaveAs={() => setDialog("saveAs")}
         onHistory={() => void historyDialog()}
         onFit={() => gantt.current?.fit()}
-        onZoomIn={() => gantt.current?.zoomBy(1 / ZOOM_STEP)}
-        onZoomOut={() => gantt.current?.zoomBy(ZOOM_STEP)}
         onTogglePanel={togglePanel}
         panelCollapsed={panelCollapsed}
       />

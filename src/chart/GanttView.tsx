@@ -22,12 +22,12 @@ const FIT_PAD = 0.04;
 const AXIS_CONTEXT = 0.6;
 const MIN_AXIS_CONTEXT_MS = 30 * 86_400_000;
 
-/** Imperative zoom controls, so the toolbar can offer labelled buttons. */
+/**
+ * Framing the plan is the one thing the gestures cannot do, so it is the only
+ * control the toolbar drives. Zooming by degree is the ruler drag and pinch.
+ */
 export interface GanttHandle {
-  /** Frame the whole plan, padding included. */
   fit(): void;
-  /** Zoom about a point in the current view; factor > 1 zooms out. */
-  zoomBy(factor: number, anchor?: number): void;
 }
 
 /** Gantt wants number | Percent; the document stores a string like "30%". */
@@ -107,6 +107,25 @@ export function GanttView({
     const mountedAt = Date.now();
     const isSettling = () => Date.now() - mountedAt < SETTLE_MS;
 
+    const div = divRef.current;
+
+    /**
+     * Pointer geometry, cached.
+     *
+     * Pointer events carry viewport coordinates but globalBounds() is in the
+     * chart's own space, so every hit test needs both. Measuring them per event
+     * forces a layout on every mouse move across the chart, which is enough to
+     * make the whole UI feel sluggish. They only change when the window or the
+     * chart does, so they are measured then instead.
+     */
+    let rect = div.getBoundingClientRect();
+    let plot = chart.xyChart.plotContainer.globalBounds();
+    const remeasure = () => {
+      rect = div.getBoundingClientRect();
+      plot = chart.xyChart.plotContainer.globalBounds();
+    };
+    window.addEventListener("resize", remeasure);
+
     const apply = () => {
       const doc = store.get();
       const { categories, tasks } = project(doc);
@@ -144,6 +163,10 @@ export function GanttView({
           strictMinMax: true,
         });
       }
+
+      // The chart has just relaid out, so this is the cheap moment to refresh
+      // the cached pointer geometry — once per edit rather than per mouse move.
+      remeasure();
     };
 
     chart.events.onDebounced(
@@ -187,23 +210,16 @@ export function GanttView({
      * amCharts has no handling of its own for it. Plain scrolling is left
      * alone so two-finger panning and row scrolling still work.
      */
-    const div = divRef.current;
-
-    /**
-     * Pointer and wheel events carry viewport coordinates, but globalBounds()
-     * is in the chart's own space, which starts at this element.
-     */
-    const localPoint = (e: { clientX: number; clientY: number }) => {
-      const rect = div.getBoundingClientRect();
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    };
+    const localPoint = (e: { clientX: number; clientY: number }) => ({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
 
     /** Where a point sits across the plot, as a fraction, clamped to 0..1. */
     const anchorAt = (x: number) => {
-      const bounds = chart.xyChart.plotContainer.globalBounds();
-      const width = bounds.right - bounds.left;
+      const width = plot.right - plot.left;
       if (width <= 0) return 0.5;
-      return Math.min(1, Math.max(0, (x - bounds.left) / width));
+      return Math.min(1, Math.max(0, (x - plot.left) / width));
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -221,9 +237,8 @@ export function GanttView({
      * the bars and left of it to the sidebar.
      */
     const overRuler = (e: PointerEvent) => {
-      const bounds = chart.xyChart.plotContainer.globalBounds();
       const { x, y } = localPoint(e);
-      return y < bounds.top && x >= bounds.left;
+      return y < plot.top && x >= plot.left;
     };
 
     let dragX: number | null = null;
@@ -240,9 +255,16 @@ export function GanttView({
       }
     };
 
+    let cursor = "";
     const onPointerMove = (e: PointerEvent) => {
       if (dragX === null) {
-        div.style.cursor = overRuler(e) ? "ew-resize" : "";
+        // Assigning style on every move invalidates style even when the value
+        // is unchanged, so only write when it actually differs.
+        const wanted = overRuler(e) ? "ew-resize" : "";
+        if (wanted !== cursor) {
+          cursor = wanted;
+          div.style.cursor = wanted;
+        }
         return;
       }
       const dx = e.clientX - dragX;
@@ -268,7 +290,7 @@ export function GanttView({
     // Two-finger horizontal scrolling pans time, the conventional gesture.
     chart.xyChart.set("wheelX", "panX");
 
-    if (handleRef) handleRef.current = { fit, zoomBy };
+    if (handleRef) handleRef.current = { fit };
 
     apply();
 
@@ -285,6 +307,7 @@ export function GanttView({
 
     return () => {
       unsubscribe();
+      window.removeEventListener("resize", remeasure);
       div.removeEventListener("wheel", onWheel);
       div.removeEventListener("pointerdown", onPointerDown, true);
       div.removeEventListener("pointermove", onPointerMove, true);

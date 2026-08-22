@@ -9,8 +9,6 @@ export interface ToolbarProps {
   onSaveAs(): void;
   onHistory(): void;
   onFit(): void;
-  onZoomIn(): void;
-  onZoomOut(): void;
   onTogglePanel(): void;
   panelCollapsed: boolean;
   saving: boolean;
@@ -23,8 +21,6 @@ export function Toolbar({
   onSaveAs,
   onHistory,
   onFit,
-  onZoomIn,
-  onZoomOut,
   onTogglePanel,
   panelCollapsed,
   saving,
@@ -61,12 +57,6 @@ export function Toolbar({
       <div className="zoom-group" role="group" aria-label="Zoom">
         <button onClick={onFit} title="Show the whole plan">
           Fit
-        </button>
-        <button onClick={onZoomOut} aria-label="Zoom out" title="Zoom out">
-          &minus;
-        </button>
-        <button onClick={onZoomIn} aria-label="Zoom in" title="Zoom in">
-          +
         </button>
       </div>
       <button onClick={onOpen}>Open</button>

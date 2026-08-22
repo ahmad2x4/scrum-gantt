@@ -69,6 +69,18 @@ that renders it, and keeps the amCharts rules in one reviewable place.
   colleague's shared plan requires the Google Picker.
 - **Dispose with `root.dispose()`, never `chart.dispose()`.**
 
+## Chart interaction
+
+Zooming is by gesture: drag the date ruler left or right, or pinch (macOS sends
+that as a wheel event with `ctrlKey`, which amCharts does not handle itself).
+The toolbar offers only **Fit**, because framing the whole plan is the one
+thing the gestures cannot do.
+
+`durationUnit` is day or week only. amCharts expresses it as a bare enum with
+no count (`GanttSeries.getUnitDuration`), so there is no two-week unit.
+Overriding that method to fake one also breaks `getOpenValue`, whose weekend
+nudge then steps by a fortnight and loops forever — do not go there.
+
 ## amCharts
 
 Coding rules live in `.claude/skills/amcharts5/`. Read `SKILL.md` (critical

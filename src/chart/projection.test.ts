@@ -256,3 +256,45 @@ describe("colour inheritance", () => {
     expect(project(plain).categories[0].color).toBeUndefined();
   });
 });
+
+describe("group roll-up with unusable children", () => {
+  const withBadChild = (task: Record<string, unknown>) =>
+    doc({
+      rows: [
+        { id: "t1", name: "Team", kind: "team" },
+        { id: "s1", name: "Stream", kind: "stream", parentId: "t1" },
+        { id: "a", name: "A", kind: "item", parentId: "s1" },
+        { id: "b", name: "B", kind: "item", parentId: "s1" },
+      ],
+      tasks: [{ id: "a", start: 1_000_000, duration: 4 }, task as never],
+    });
+
+  it("never paints NaN into a group when a child has no start", () => {
+    const { tasks } = project(withBadChild({ id: "b", duration: 5 }));
+    for (const t of tasks) {
+      expect(Number.isFinite(t.duration)).toBe(true);
+      expect(Number.isFinite(t.start)).toBe(true);
+    }
+  });
+
+  it("never paints NaN into a group when a child has no duration", () => {
+    const { tasks } = project(withBadChild({ id: "b", start: 1_000_000 }));
+    for (const t of tasks) expect(Number.isFinite(t.duration)).toBe(true);
+  });
+
+  it("still rolls up the usable children", () => {
+    const { tasks } = project(withBadChild({ id: "b", duration: 5 }));
+    expect(tasks.find((t) => t.id === "s1")?.duration).toBe(4);
+  });
+
+  it("emits no group bar when every child is unusable", () => {
+    const bad = doc({
+      rows: [
+        { id: "t1", name: "Team", kind: "team" },
+        { id: "a", name: "A", kind: "item", parentId: "t1" },
+      ],
+      tasks: [{ id: "a", duration: 3 } as never],
+    });
+    expect(project(bad).tasks.find((t) => t.id === "t1")).toBeUndefined();
+  });
+});

@@ -64,7 +64,12 @@ function rollUpGroups(doc: PlanDocument): GanttTask[] {
   const out: GanttTask[] = [];
   for (const row of doc.rows) {
     if (row.kind === "item") continue;
-    const children = descendantTasks(row.id);
+    // Only children with usable numbers: one task carrying an undefined or
+    // NaN start propagates through Math.min and paints NaN into the group's
+    // duration column, which is what the user sees.
+    const children = descendantTasks(row.id).filter(
+      (t) => Number.isFinite(t.start) && Number.isFinite(t.duration),
+    );
     if (children.length === 0) continue;
 
     // Spans must be measured the way the chart measures them: in working
@@ -79,10 +84,13 @@ function rollUpGroups(doc: PlanDocument): GanttTask[] {
       0,
     );
 
+    const duration = workingUnitsBetween(start, end, doc.calendar);
+    if (!Number.isFinite(start) || !Number.isFinite(duration)) continue;
+
     out.push({
       id: row.id,
       start,
-      duration: workingUnitsBetween(start, end, doc.calendar),
+      duration,
       progress: toChartProgress(weight > 0 ? weighted / weight : 0),
     });
   }
@@ -130,7 +138,13 @@ export function project(doc: PlanDocument): {
     return c;
   });
 
-  const tasks = doc.tasks.map((task) => {
+  // A task with a missing or non-numeric start or duration paints NaN into the
+  // chart's duration column, and poisons any group that rolls it up.
+  const usable = doc.tasks.filter(
+    (t) => Number.isFinite(t.start) && Number.isFinite(t.duration),
+  );
+
+  const tasks = usable.map((task) => {
     const t: GanttTask = {
       id: task.id,
       start: task.start,

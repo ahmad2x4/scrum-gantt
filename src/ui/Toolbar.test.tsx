@@ -103,24 +103,20 @@ describe("Toolbar", () => {
 });
 
 describe("zoom controls", () => {
-  it.each([
-    [/fit/i, "onFit"],
-    [/zoom out/i, "onZoomOut"],
-    [/zoom in/i, "onZoomIn"],
-  ])("wires %s", async (label, prop) => {
+  it("wires Fit", async () => {
     const spy = vi.fn();
-    render(
-      <Toolbar {...props(createStore(emptyPlan("p")), { [prop]: spy })} />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: label }));
+    render(<Toolbar {...props(createStore(emptyPlan("p")), { onFit: spy })} />);
+    await userEvent.click(screen.getByRole("button", { name: /fit/i }));
     expect(spy).toHaveBeenCalledOnce();
   });
 
-  it("groups them so they read as one control", () => {
+  it("offers no zoom step buttons, since the ruler drag and pinch cover that", () => {
     render(<Toolbar {...props(createStore(emptyPlan("p")))} />);
-    const group = screen.getByRole("group", { name: /zoom/i });
-    expect(group).toContainElement(
-      screen.getByRole("button", { name: /fit/i }),
-    );
+    expect(
+      screen.queryByRole("button", { name: /zoom in/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /zoom out/i }),
+    ).not.toBeInTheDocument();
   });
 });

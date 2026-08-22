@@ -111,7 +111,7 @@ test("Save as… refuses an empty name", async ({ page }) => {
   await expect(page.locator(".dialog-backdrop")).toBeVisible();
 });
 
-test("the zoom controls drive the chart without errors", async ({ page }) => {
+test("Fit drives the chart without errors", async ({ page }) => {
   await blockGoogle(page);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -122,17 +122,42 @@ test("the zoom controls drive the chart without errors", async ({ page }) => {
   await page.getByRole("button", { name: /add item to new stream/i }).click();
 
   // The chart is a canvas, so there is no DOM text to compare a range against.
-  // The arithmetic is covered by src/chart/zoom.test.ts; what this can prove is
-  // that the controls reach amCharts and the chart survives being driven to
-  // both extremes.
-  for (let i = 0; i < 8; i++) {
-    await page.getByRole("button", { name: /zoom in/i }).click();
-  }
-  for (let i = 0; i < 12; i++) {
-    await page.getByRole("button", { name: /zoom out/i }).click();
-  }
+  // What this can prove is that Fit reaches amCharts and the chart survives it.
   await page.getByRole("button", { name: /fit/i }).click();
 
   await expect(page.locator(".chart-area canvas").first()).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("switching the duration unit keeps the plan's dates", async ({ page }) => {
+  await blockGoogle(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: /add team/i }).click();
+  await page.getByRole("button", { name: /add stream to new team/i }).click();
+  await page.getByRole("button", { name: /add item to new stream/i }).click();
+
+  const draft = () =>
+    page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("scrum-gantt:draft") || "null")?.doc,
+    );
+
+  // Poll for the task, not merely for a non-null draft: the autosave debounce
+  // means an empty or absent draft is the normal state for the first second.
+  await expect.poll(async () => (await draft())?.tasks?.length).toBe(1);
+  const before = await draft();
+
+  await page.getByRole("button", { name: "1w" }).click();
+  await expect
+    .poll(async () => (await draft())?.calendar.durationUnit)
+    .toBe("week");
+
+  await page.getByRole("button", { name: "1d" }).click();
+  await expect
+    .poll(async () => (await draft())?.calendar.durationUnit)
+    .toBe("day");
+
+  // A round trip through weeks must leave the plan exactly as it was.
+  const after = await draft();
+  expect(after.tasks).toEqual(before.tasks);
 });
