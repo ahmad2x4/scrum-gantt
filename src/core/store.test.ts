@@ -88,3 +88,30 @@ describe("non-dirtying apply", () => {
     expect(store.isDirty()).toBe(true);
   });
 });
+
+describe("markDirty", () => {
+  it("flags an unsaved edit without changing the document", () => {
+    const store = createStore(emptyPlan("p"));
+    const before = store.get();
+    store.markDirty();
+    expect(store.isDirty()).toBe(true);
+    expect(store.get()).toBe(before);
+  });
+
+  it("notifies subscribers", () => {
+    const store = createStore(emptyPlan("p"));
+    const seen = vi.fn();
+    store.subscribe(seen);
+    store.markDirty();
+    expect(seen).toHaveBeenCalledOnce();
+  });
+
+  it("does not notify when the document is already dirty", () => {
+    const store = createStore(emptyPlan("p"));
+    store.markDirty();
+    const seen = vi.fn();
+    store.subscribe(seen);
+    store.markDirty();
+    expect(seen).not.toHaveBeenCalled();
+  });
+});

@@ -13,6 +13,8 @@ export interface Store {
   subscribe(fn: () => void): () => void;
   isDirty(): boolean;
   markSaved(): void;
+  /** Flags the current document as an unsaved edit without changing it. */
+  markDirty(): void;
 }
 
 /**
@@ -59,6 +61,12 @@ export function createStore(initial: PlanDocument): Store {
 
     markSaved() {
       dirty = false;
+      notify();
+    },
+
+    markDirty() {
+      if (dirty) return;
+      dirty = true;
       notify();
     },
   };
