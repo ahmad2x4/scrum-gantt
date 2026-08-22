@@ -82,7 +82,10 @@ Four layers. Dependencies point downward only.
 These are lint rules, not conventions:
 
 1. Only `chart/` may import `@amcharts/*`.
-2. `ui/` and `storage/` must not import `chart/`.
+2. `ui/` and `storage/` must not import `chart/`. The composition root
+   `src/App.tsx` sits outside `ui/` precisely so this rule needs no exception:
+   `ui/` holds presentational components, and wiring the layers together is a
+   separate job belonging to a separate file.
 3. `core/` must not import from any other layer.
 
 Rule 1 is what keeps the amCharts rules (`.new()` factory, `am5.color()`,

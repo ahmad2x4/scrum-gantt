@@ -30,7 +30,8 @@ Add a worktree with `git worktree add <dir> -b <branch>`.
 These are enforced by lint rules, not convention. Do not work around them:
 
 1. Only `src/chart/` may import `@amcharts/*`.
-2. `src/ui/` and `src/storage/` must not import `src/chart/`.
+2. `src/ui/` and `src/storage/` must not import `src/chart/`. The composition
+   root `src/App.tsx` lives outside `src/ui/` so this rule needs no exception.
 3. `src/core/` must not import from any other layer.
 
 The reasoning: `am5gantt.Gantt` is an imperative, canvas-rendered component that

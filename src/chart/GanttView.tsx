@@ -1,0 +1,89 @@
+import { useEffect, useRef } from "react";
+import * as am5 from "@amcharts/amcharts5";
+import * as am5gantt from "@amcharts/amcharts5/gantt";
+import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
+import type { Store } from "../core/store";
+import { project, type GanttTask } from "./projection";
+import { ingestTasks, isEcho } from "./ingest";
+
+/** Gantt wants number | Percent; the document stores a string like "30%". */
+function toWidth(value: string): number | am5.Percent {
+  return value.trim().endsWith("%") ? am5.percent(parseFloat(value)) : parseFloat(value);
+}
+
+export function GanttView({ store }: { store: Store }) {
+  const divRef = useRef<HTMLDivElement>(null);
+
+  // Empty deps: the chart is created once and fed through the store
+  // subscription. React must never re-render it.
+  useEffect(() => {
+    if (!divRef.current) return;
+
+    const root = am5.Root.new(divRef.current);
+    root.setThemes([am5themes_Animated.new(root)]);
+
+    const doc0 = store.get();
+    const chart = root.container.children.push(
+      am5gantt.Gantt.new(root, {
+        editable: true,
+        durationUnit: doc0.calendar.durationUnit,
+        weekends: doc0.calendar.weekends,
+        excludeWeekends: doc0.calendar.excludeWeekends,
+        holidays: doc0.calendar.holidays.map((d) => new Date(d)),
+        sidebarWidth: toWidth(doc0.view.sidebarWidth),
+      }),
+    );
+
+    // Echo guard #1: ignore valueschanged fired by our own writes.
+    let applying = false;
+
+    const apply = () => {
+      const { categories, tasks } = project(store.get());
+      applying = true;
+      try {
+        // Set data last, and category data before series data.
+        chart.yAxis.data.setAll(
+          categories.map((c) => ({
+            ...c,
+            color: c.color !== undefined ? am5.color(c.color) : undefined,
+          })),
+        );
+        chart.series.data.setAll(tasks);
+      } finally {
+        applying = false;
+      }
+    };
+
+    chart.events.onDebounced(
+      "valueschanged",
+      () => {
+        if (applying) return;
+        const snapshots = chart.series.data.values as unknown as GanttTask[];
+        if (isEcho(store.get(), snapshots)) return;
+        store.apply(ingestTasks(snapshots));
+      },
+      300,
+    );
+
+    // Today marker. Settings go on the data item, not the returned range.
+    const todayItem = chart.xAxis.makeDataItem({ value: Date.now() });
+    chart.xAxis.createAxisRange(todayItem);
+    todayItem.get("grid")?.setAll({
+      stroke: am5.color(0xd93025),
+      strokeWidth: 2,
+      strokeOpacity: 1,
+      visible: true,
+    });
+
+    apply();
+    const unsubscribe = store.subscribe(apply);
+    chart.appear(1000, 100);
+
+    return () => {
+      unsubscribe();
+      root.dispose(); // never chart.dispose()
+    };
+  }, [store]);
+
+  return <div ref={divRef} style={{ width: "100%", height: "100%" }} />;
+}

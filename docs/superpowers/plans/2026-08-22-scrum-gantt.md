@@ -16,7 +16,7 @@
 
 Every task's requirements implicitly include this section.
 
-- **Layer boundaries (lint-enforced):** only `src/chart/` may import `@amcharts/*`; `src/ui/` and `src/storage/` must never import `src/chart/`; `src/core/` must not import from any other layer.
+- **Layer boundaries (lint-enforced):** only `src/chart/` may import `@amcharts/*`; `src/ui/` and `src/storage/` must never import `src/chart/`; `src/core/` must not import from any other layer. The composition root is `src/App.tsx`, **outside** `src/ui/`, so it may wire chart and storage together without weakening the rule.
 - **File size:** no file exceeds ~150 lines. Split rather than exceed.
 - **Colours are hex strings** (`"#rrggbb"`) in `PlanDocument`. Never store `am5.Color` objects — they do not survive `JSON.stringify`.
 - **Timestamps are epoch milliseconds** (`number`), never `Date` objects. The amCharts `DateAxis` requires this.
@@ -49,7 +49,7 @@ Every task's requirements implicitly include this section.
 | `src/storage/driveClient.ts` | Folder, list, read, create, update, revisions |
 | `src/storage/picker.ts` | Google Picker loader and open flow |
 | `src/ui/useStore.ts` | `useSyncExternalStore` bridge |
-| `src/ui/App.tsx` | Layout, wiring, save orchestration |
+| `src/App.tsx` | Composition root: layout, wiring, save orchestration (outside `ui/`) |
 | `src/ui/Toolbar.tsx` | Open / Save / Save as / History / dirty dot |
 | `src/ui/StructurePanel.tsx` | Tree container |
 | `src/ui/StructureRow.tsx` | One row: rename, recolour, delete |
