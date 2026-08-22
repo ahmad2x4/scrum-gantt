@@ -14,6 +14,14 @@ const SETTLE_MS = 2000;
 /** Breathing room either side of the plan when fitting, as a fraction. */
 const FIT_PAD = 0.04;
 
+/**
+ * How far past the plan the axis reaches, so there is somewhere to zoom out
+ * to. A fraction of the plan's span, with a floor so a short plan still gets
+ * a recognisable amount of calendar around it.
+ */
+const AXIS_CONTEXT = 0.6;
+const MIN_AXIS_CONTEXT_MS = 30 * 86_400_000;
+
 /** Imperative zoom controls, so the toolbar can offer labelled buttons. */
 export interface GanttHandle {
   /** Frame the whole plan, padding included. */
@@ -115,6 +123,26 @@ export function GanttView({
         chart.series.data.setAll(tasks);
       } finally {
         applying = false;
+      }
+
+      // Widen the axis past the plan so zooming out reaches calendar context
+      // instead of stopping dead at the first and last task. After the data,
+      // because setting data recalculates the range; setPrivate rather than
+      // set, because the Gantt drives the range through the private values
+      // (Gantt.js:298, 420).
+      const extent = planExtent(doc);
+      if (extent) {
+        const pad = Math.max(
+          (extent.end - extent.start) * AXIS_CONTEXT,
+          MIN_AXIS_CONTEXT_MS,
+        );
+        chart.xAxis.setAll({
+          min: extent.start - pad,
+          max: extent.end + pad,
+          // Without this the axis re-derives its range from the data whenever
+          // the chart is zoomed, and the widening lasts exactly one render.
+          strictMinMax: true,
+        });
       }
     };
 
