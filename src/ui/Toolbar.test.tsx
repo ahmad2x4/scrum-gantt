@@ -8,7 +8,8 @@ import { addTeam } from "../core/mutations";
 
 const noop = () => {};
 const props = (store: ReturnType<typeof createStore>, over = {}) => ({
-  store, onOpen: noop, onSave: noop, onSaveAs: noop, onHistory: noop, saving: false, ...over,
+  store, onOpen: noop, onSave: noop, onSaveAs: noop, onHistory: noop,
+  onTogglePanel: noop, panelCollapsed: false, saving: false, ...over,
 });
 
 describe("Toolbar", () => {
@@ -49,6 +50,18 @@ describe("Toolbar", () => {
     await userEvent.click(screen.getByRole("button", { name: /history/i }));
     expect(onOpen).toHaveBeenCalledOnce();
     expect(onHistory).toHaveBeenCalledOnce();
+  });
+
+  it("toggles the structure panel", async () => {
+    const onTogglePanel = vi.fn();
+    render(<Toolbar {...props(createStore(emptyPlan("p")), { onTogglePanel })} />);
+    await userEvent.click(screen.getByRole("button", { name: /hide structure panel/i }));
+    expect(onTogglePanel).toHaveBeenCalledOnce();
+  });
+
+  it("offers to show the panel again once collapsed", () => {
+    render(<Toolbar {...props(createStore(emptyPlan("p")), { panelCollapsed: true })} />);
+    expect(screen.getByRole("button", { name: /show structure panel/i })).toHaveAttribute("aria-expanded", "false");
   });
 
   it("reflects a later plan rename without a remount", async () => {

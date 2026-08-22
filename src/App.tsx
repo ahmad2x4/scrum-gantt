@@ -6,6 +6,7 @@ import { addTeam, addStream, addItem, setRowColor, updateTask } from "./core/mut
 import { GanttView } from "./chart/GanttView";
 import { Toolbar } from "./ui/Toolbar";
 import { StructurePanel } from "./ui/StructurePanel";
+import { usePanelCollapsed } from "./ui/usePanelCollapsed";
 
 const DAY = 86_400_000;
 
@@ -40,6 +41,7 @@ const notYet = () => window.alert("Google Drive is wired up in a later task.");
 
 export default function App() {
   const store = useMemo(() => demoStore(), []);
+  const [panelCollapsed, togglePanel] = usePanelCollapsed();
 
   return (
     <div className="app">
@@ -50,9 +52,11 @@ export default function App() {
         onSave={notYet}
         onSaveAs={notYet}
         onHistory={notYet}
+        onTogglePanel={togglePanel}
+        panelCollapsed={panelCollapsed}
       />
       <div className="workspace">
-        <StructurePanel store={store} />
+        {!panelCollapsed && <StructurePanel store={store} />}
         <main className="chart-area">
           <GanttView store={store} />
         </main>
