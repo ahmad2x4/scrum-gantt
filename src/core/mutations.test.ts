@@ -134,11 +134,15 @@ describe("moveRow", () => {
 });
 
 describe("setDurationUnit", () => {
-  const withTask = (duration: number) => ({
-    ...emptyPlan("p"),
-    rows: [{ id: "a", name: "Item", kind: "item" as const }],
-    tasks: [{ id: "a", start: 0, duration }],
-  });
+  const withTask = (duration: number, excludeWeekends = true) => {
+    const base = emptyPlan("p");
+    return {
+      ...base,
+      calendar: { ...base.calendar, excludeWeekends },
+      rows: [{ id: "a", name: "Item", kind: "item" as const }],
+      tasks: [{ id: "a", start: 0, duration }],
+    };
+  };
 
   it("records the new unit", () => {
     expect(setDurationUnit("week")(emptyPlan("p")).calendar.durationUnit).toBe(
@@ -146,23 +150,32 @@ describe("setDurationUnit", () => {
     );
   });
 
-  it("keeps the plan's real span: fourteen days is two weeks", () => {
-    expect(setDurationUnit("week")(withTask(14)).tasks[0].duration).toBe(2);
+  it("counts a week as five days while weekends are excluded", () => {
+    // A duration in days means working days, so a two-week sprint reads as 10,
+    // not 14. Dividing by seven is what made a ten-day task show as 1.43.
+    expect(setDurationUnit("week")(withTask(10)).tasks[0].duration).toBe(2);
+    expect(setDurationUnit("week")(withTask(5)).tasks[0].duration).toBe(1);
+  });
+
+  it("counts a week as seven days when the calendar includes weekends", () => {
+    expect(setDurationUnit("week")(withTask(14, false)).tasks[0].duration).toBe(
+      2,
+    );
   });
 
   it("converts back without losing the span", () => {
-    const weeks = setDurationUnit("week")(withTask(14));
-    expect(setDurationUnit("day")(weeks).tasks[0].duration).toBe(14);
+    const weeks = setDurationUnit("week")(withTask(10));
+    expect(setDurationUnit("day")(weeks).tasks[0].duration).toBe(10);
   });
 
   it("keeps a fractional result rather than rounding the plan out of shape", () => {
-    expect(setDurationUnit("week")(withTask(5)).tasks[0].duration).toBe(0.71);
+    // Seven working days is a week and two days over.
+    expect(setDurationUnit("week")(withTask(7)).tasks[0].duration).toBe(1.4);
   });
 
   it("survives a round trip without eroding the duration", () => {
-    // Naive rounding turns 5 days into 0.71 weeks and back into 4.97 days.
-    const weeks = setDurationUnit("week")(withTask(5));
-    expect(setDurationUnit("day")(weeks).tasks[0].duration).toBe(5);
+    const weeks = setDurationUnit("week")(withTask(7));
+    expect(setDurationUnit("day")(weeks).tasks[0].duration).toBe(7);
   });
 
   it("snaps to a whole number when the conversion lands on one", () => {

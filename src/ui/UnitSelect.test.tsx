@@ -28,7 +28,8 @@ describe("UnitSelect", () => {
   });
 
   it("converts durations so the plan keeps its real span", async () => {
-    const store = createStore(planWithTask(14));
+    // Ten working days, which is two working weeks — a fortnightly sprint.
+    const store = createStore(planWithTask(10));
     render(<UnitSelect store={store} />);
     await userEvent.click(screen.getByRole("button", { name: "1w" }));
     expect(store.get().tasks[0].duration).toBe(2);

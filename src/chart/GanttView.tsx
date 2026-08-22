@@ -7,6 +7,7 @@ import type { Store } from "../core/store";
 import { project, planExtent, type GanttTask } from "./projection";
 import { ingestTasks, isEcho } from "./ingest";
 import { zoomRange, dragZoomFactor } from "./zoom";
+import { chartCalendar } from "./calendar";
 
 /** Window after mount in which chart writebacks count as reconciliation. */
 const SETTLE_MS = 2000;
@@ -69,10 +70,7 @@ export function GanttView({
     const chart = root.container.children.push(
       am5gantt.Gantt.new(root, {
         editable: true,
-        durationUnit: doc0.calendar.durationUnit,
-        weekends: doc0.calendar.weekends,
-        excludeWeekends: doc0.calendar.excludeWeekends,
-        holidays: doc0.calendar.holidays.map((d) => new Date(d)),
+        ...chartCalendar(doc0.calendar),
         sidebarWidth: toWidth(doc0.view.sidebarWidth),
       }),
     );
@@ -126,12 +124,27 @@ export function GanttView({
     };
     window.addEventListener("resize", remeasure);
 
+    // The calendar the chart currently holds. Pushing it on every render would
+    // hand amCharts a fresh holidays array each time and invalidate the chart
+    // for nothing, so it is compared first.
+    let appliedCalendar = JSON.stringify(doc0.calendar);
+
     const apply = () => {
       const doc = store.get();
       const { categories, tasks } = project(doc);
 
       applying = true;
       try {
+        // Before the data, so the durations about to arrive are read in the
+        // unit they were written in. Without this the chart keeps counting in
+        // whatever unit it was built with: switching to weeks rewrites every
+        // duration and the bars stay the length they were in days.
+        const signature = JSON.stringify(doc.calendar);
+        if (signature !== appliedCalendar) {
+          appliedCalendar = signature;
+          chart.setAll(chartCalendar(doc.calendar));
+        }
+
         // Set data last, and category data before series data.
         chart.yAxis.data.setAll(
           categories.map((c) => ({

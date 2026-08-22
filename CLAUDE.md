@@ -81,6 +81,21 @@ no count (`GanttSeries.getUnitDuration`), so there is no two-week unit.
 Overriding that method to fake one also breaks `getOpenValue`, whose weekend
 nudge then steps by a fortnight and loops forever — do not go there.
 
+Two rules follow from that, both easy to undo by accident:
+
+- **The chart's calendar must be pushed on every change**, not just at
+  construction (`chart.setAll(chartCalendar(...))` inside the echo guard in
+  `apply`). Set once, the chart keeps counting in its original unit while the
+  document's durations are rewritten, and every bar comes out the wrong length.
+- **`excludeWeekends` is forced off in week mode** (`src/chart/calendar.ts`).
+  `getOpenValue` nudges a weekend start forward one unit at a time; a unit is a
+  bare week, so a Saturday steps to Saturday forever and hangs the tab. Weekends
+  belong inside a calendar week regardless.
+
+A duration counted in days means *working* days when the calendar excludes
+weekends, so `setDurationUnit` converts at five days to the week, not seven: a
+ten-day sprint is two weeks.
+
 ## amCharts
 
 Coding rules live in `.claude/skills/amcharts5/`. Read `SKILL.md` (critical

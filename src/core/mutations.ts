@@ -142,19 +142,26 @@ function convert(duration: number, ratio: number): number {
   return Math.round(exact * 100) / 100;
 }
 
-/** How many days one unit of duration covers. */
-const UNIT_DAYS: Record<Calendar["durationUnit"], number> = { day: 1, week: 7 };
+/**
+ * How many days one week of duration covers.
+ *
+ * A duration counted in days means *working* days whenever the calendar
+ * excludes weekends, so a week is five of them, not seven. Dividing by seven
+ * regardless is what made a two-week sprint read as 1.43 weeks.
+ */
+const daysPerWeek = (cal: Calendar): number => (cal.excludeWeekends ? 5 : 7);
 
 /**
  * Switches the unit durations are counted in, rewriting every task so the plan
- * keeps the same real span: a 14-day task becomes 2 when you switch to weeks.
+ * keeps the same real span: a 10-working-day task becomes 2 when you switch
+ * to weeks.
  */
 export const setDurationUnit =
   (durationUnit: Calendar["durationUnit"]): Mutation =>
   (doc) => {
     if (doc.calendar.durationUnit === durationUnit) return doc;
-    const ratio =
-      UNIT_DAYS[doc.calendar.durationUnit] / UNIT_DAYS[durationUnit];
+    const perWeek = daysPerWeek(doc.calendar);
+    const ratio = durationUnit === "week" ? 1 / perWeek : perWeek;
     return {
       ...doc,
       calendar: { ...doc.calendar, durationUnit },
