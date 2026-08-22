@@ -28,3 +28,18 @@ export function zoomRange(current: Range, factor: number, anchor = 0.5): Range {
 
   return { start, end: start + nextSpan };
 }
+
+/**
+ * How sharply dragging the date ruler zooms, per pixel of horizontal travel.
+ */
+const DRAG_RATE = 0.005;
+
+/**
+ * Converts a horizontal drag on the date ruler into a zoom factor.
+ *
+ * Dragging right stretches the ruler — fewer days across the same width, so
+ * the window narrows and the factor is below 1. Dragging left squeezes it.
+ */
+export function dragZoomFactor(dx: number): number {
+  return Math.exp(-dx * DRAG_RATE);
+}

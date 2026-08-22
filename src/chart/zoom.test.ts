@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { zoomRange, MIN_SPAN } from "./zoom";
+import { zoomRange, dragZoomFactor, MIN_SPAN } from "./zoom";
 
 const span = (r: { start: number; end: number }) => r.end - r.start;
 
@@ -55,5 +55,27 @@ describe("zoomRange", () => {
     const r = zoomRange({ start: 0.3, end: 0.7 }, 1);
     expect(r.start).toBeCloseTo(0.3);
     expect(r.end).toBeCloseTo(0.7);
+  });
+});
+
+describe("dragZoomFactor", () => {
+  it("zooms in when the ruler is dragged right", () => {
+    expect(dragZoomFactor(100)).toBeLessThan(1);
+  });
+
+  it("zooms out when the ruler is dragged left", () => {
+    expect(dragZoomFactor(-100)).toBeGreaterThan(1);
+  });
+
+  it("does nothing without movement", () => {
+    expect(dragZoomFactor(0)).toBe(1);
+  });
+
+  it("is symmetric, so a drag and its reverse cancel out", () => {
+    expect(dragZoomFactor(80) * dragZoomFactor(-80)).toBeCloseTo(1);
+  });
+
+  it("grows with the size of the drag", () => {
+    expect(dragZoomFactor(200)).toBeLessThan(dragZoomFactor(100));
   });
 });

@@ -6,7 +6,7 @@ import am5themes_Dark from "@amcharts/amcharts5/themes/Dark";
 import type { Store } from "../core/store";
 import { project, planExtent, type GanttTask } from "./projection";
 import { ingestTasks, isEcho } from "./ingest";
-import { zoomRange } from "./zoom";
+import { zoomRange, dragZoomFactor } from "./zoom";
 
 /** Window after mount in which chart writebacks count as reconciliation. */
 const SETTLE_MS = 2000;
@@ -159,18 +159,83 @@ export function GanttView({
      * amCharts has no handling of its own for it. Plain scrolling is left
      * alone so two-finger panning and row scrolling still work.
      */
+    const div = divRef.current;
+
+    /**
+     * Pointer and wheel events carry viewport coordinates, but globalBounds()
+     * is in the chart's own space, which starts at this element.
+     */
+    const localPoint = (e: { clientX: number; clientY: number }) => {
+      const rect = div.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    /** Where a point sits across the plot, as a fraction, clamped to 0..1. */
+    const anchorAt = (x: number) => {
+      const bounds = chart.xyChart.plotContainer.globalBounds();
+      const width = bounds.right - bounds.left;
+      if (width <= 0) return 0.5;
+      return Math.min(1, Math.max(0, (x - bounds.left) / width));
+    };
+
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      const bounds = chart.xyChart.plotContainer.globalBounds();
-      const width = bounds.right - bounds.left;
-      const anchor = width > 0 ? (e.clientX - bounds.left) / width : 0.5;
-      zoomBy(Math.exp(e.deltaY * 0.01), Math.min(1, Math.max(0, anchor)));
+      zoomBy(Math.exp(e.deltaY * 0.01), anchorAt(localPoint(e).x));
     };
     // Not passive: the handler calls preventDefault to stop the browser
     // treating a pinch as a page zoom.
-    const div = divRef.current;
     div.addEventListener("wheel", onWheel, { passive: false });
+
+    /**
+     * Dragging the date ruler left and right zooms, the convention in most
+     * planning tools. The ruler is the band above the plot; below belongs to
+     * the bars and left of it to the sidebar.
+     */
+    const overRuler = (e: PointerEvent) => {
+      const bounds = chart.xyChart.plotContainer.globalBounds();
+      const { x, y } = localPoint(e);
+      return y < bounds.top && x >= bounds.left;
+    };
+
+    let dragX: number | null = null;
+    let dragAnchor = 0.5;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!overRuler(e)) return;
+      dragAnchor = anchorAt(localPoint(e).x);
+      dragX = e.clientX;
+      try {
+        div.setPointerCapture(e.pointerId);
+      } catch {
+        // Not every pointer id is capturable; the drag just ends early.
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (dragX === null) {
+        div.style.cursor = overRuler(e) ? "ew-resize" : "";
+        return;
+      }
+      const dx = e.clientX - dragX;
+      dragX = e.clientX;
+      zoomBy(dragZoomFactor(dx), dragAnchor);
+    };
+
+    const endDrag = (e: PointerEvent) => {
+      if (dragX === null) return;
+      dragX = null;
+      if (div.hasPointerCapture(e.pointerId))
+        div.releasePointerCapture(e.pointerId);
+      div.style.cursor = "";
+    };
+
+    // Capture phase: amCharts handles pointer events on its canvas and stops
+    // them before they would reach this element.
+    div.addEventListener("pointerdown", onPointerDown, true);
+    div.addEventListener("pointermove", onPointerMove, true);
+    div.addEventListener("pointerup", endDrag, true);
+    div.addEventListener("pointercancel", endDrag, true);
 
     // Two-finger horizontal scrolling pans time, the conventional gesture.
     chart.xyChart.set("wheelX", "panX");
@@ -193,6 +258,10 @@ export function GanttView({
     return () => {
       unsubscribe();
       div.removeEventListener("wheel", onWheel);
+      div.removeEventListener("pointerdown", onPointerDown, true);
+      div.removeEventListener("pointermove", onPointerMove, true);
+      div.removeEventListener("pointerup", endDrag, true);
+      div.removeEventListener("pointercancel", endDrag, true);
       if (handleRef) handleRef.current = null;
       root.dispose(); // never chart.dispose()
     };
