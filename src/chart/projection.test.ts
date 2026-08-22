@@ -3,7 +3,10 @@ import { project, hexToNumber, planExtent } from "./projection";
 import { emptyPlan } from "../core/schema";
 import type { PlanDocument } from "../core/types";
 
-const doc = (over: Partial<PlanDocument>): PlanDocument => ({ ...emptyPlan("p"), ...over });
+const doc = (over: Partial<PlanDocument>): PlanDocument => ({
+  ...emptyPlan("p"),
+  ...over,
+});
 
 describe("hexToNumber", () => {
   it("converts a six-digit hex string", () => {
@@ -33,50 +36,73 @@ describe("project", () => {
     );
     expect(categories).toEqual([
       { id: "t1", name: "Falcon", color: 0xff0000 },
-      { id: "s1", name: "Payments", parentId: "t1" },
+      // The child inherits rather than arriving uncoloured: a category with no
+      // colour is given the next entry from the chart's rotating set, which
+      // changes on every redraw.
+      { id: "s1", name: "Payments", parentId: "t1", color: 0xff0000 },
     ]);
   });
 
   it("carries collapsed state through", () => {
-    const { categories } = project(doc({ rows: [{ id: "t1", name: "F", kind: "team", collapsed: true }] }));
+    const { categories } = project(
+      doc({ rows: [{ id: "t1", name: "F", kind: "team", collapsed: true }] }),
+    );
     expect(categories[0].collapsed).toBe(true);
   });
 
   it("emits tasks with epoch-ms starts untouched", () => {
-    const { tasks } = project(doc({ tasks: [{ id: "a", start: 1700000000000, duration: 5, progress: 40 }] }));
+    const { tasks } = project(
+      doc({
+        tasks: [{ id: "a", start: 1700000000000, duration: 5, progress: 40 }],
+      }),
+    );
     // start and duration pass through; progress is rescaled to the chart's 0-1.
-    expect(tasks).toEqual([{ id: "a", start: 1700000000000, duration: 5, progress: 0.4 }]);
+    expect(tasks).toEqual([
+      { id: "a", start: 1700000000000, duration: 5, progress: 0.4 },
+    ]);
   });
 
   it("preserves zero duration so milestones render", () => {
-    const { tasks } = project(doc({ tasks: [{ id: "m", start: 1, duration: 0 }] }));
+    const { tasks } = project(
+      doc({ tasks: [{ id: "m", start: 1, duration: 0 }] }),
+    );
     expect(tasks[0].duration).toBe(0);
   });
 
   it("keeps linkTo arrays for dependency arrows", () => {
-    const { tasks } = project(doc({ tasks: [{ id: "a", start: 1, duration: 2, linkTo: ["b"] }] }));
+    const { tasks } = project(
+      doc({ tasks: [{ id: "a", start: 1, duration: 2, linkTo: ["b"] }] }),
+    );
     expect(tasks[0].linkTo).toEqual(["b"]);
   });
 
   it("omits undefined optional fields rather than emitting nulls", () => {
-    const { categories } = project(doc({ rows: [{ id: "t1", name: "F", kind: "team" }] }));
+    const { categories } = project(
+      doc({ rows: [{ id: "t1", name: "F", kind: "team" }] }),
+    );
     expect(Object.keys(categories[0])).toEqual(["id", "name"]);
   });
 });
 
 describe("progress scale", () => {
   it("converts document percentage to the chart's 0-1 fraction", () => {
-    const { tasks } = project(doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 70 }] }));
+    const { tasks } = project(
+      doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 70 }] }),
+    );
     expect(tasks[0].progress).toBe(0.7);
   });
 
   it("maps 100 percent to 1, which is what stops the bar being hatched", () => {
-    const { tasks } = project(doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 100 }] }));
+    const { tasks } = project(
+      doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 100 }] }),
+    );
     expect(tasks[0].progress).toBe(1);
   });
 
   it("maps zero to zero", () => {
-    const { tasks } = project(doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 0 }] }));
+    const { tasks } = project(
+      doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 0 }] }),
+    );
     expect(tasks[0].progress).toBe(0);
   });
 });
@@ -125,7 +151,9 @@ describe("group roll-up", () => {
   });
 
   it("emits no bar for a group with no items beneath it", () => {
-    const { tasks } = project(doc({ rows: [{ id: "t1", name: "Empty", kind: "team" }] }));
+    const { tasks } = project(
+      doc({ rows: [{ id: "t1", name: "Empty", kind: "team" }] }),
+    );
     expect(tasks.find((t) => t.id === "t1")).toBeUndefined();
   });
 
@@ -144,7 +172,12 @@ describe("group roll-up", () => {
 
   it("leaves item tasks untouched", () => {
     const { tasks } = project(tree());
-    expect(tasks.find((t) => t.id === "a")).toEqual({ id: "a", start: MON, duration: 10, progress: 1 });
+    expect(tasks.find((t) => t.id === "a")).toEqual({
+      id: "a",
+      start: MON,
+      duration: 10,
+      progress: 1,
+    });
   });
 });
 
@@ -170,7 +203,56 @@ describe("planExtent", () => {
   });
 
   it("gives a milestone a non-zero window so it is not zoomed to a point", () => {
-    const extent = planExtent(doc({ tasks: [{ id: "m", start: MON2, duration: 0 }] }))!;
+    const extent = planExtent(
+      doc({ tasks: [{ id: "m", start: MON2, duration: 0 }] }),
+    )!;
     expect(extent.end).toBeGreaterThan(extent.start);
+  });
+});
+
+describe("colour inheritance", () => {
+  const tree = (
+    over: Partial<{ teamColor: string; streamColor: string }> = {},
+  ) =>
+    doc({
+      rows: [
+        {
+          id: "t1",
+          name: "Team",
+          kind: "team",
+          color: over.teamColor ?? "#297373",
+        },
+        {
+          id: "s1",
+          name: "Stream",
+          kind: "stream",
+          parentId: "t1",
+          ...(over.streamColor ? { color: over.streamColor } : {}),
+        },
+        { id: "i1", name: "Item", kind: "item", parentId: "s1" },
+      ],
+      tasks: [{ id: "i1", start: 0, duration: 3 }],
+    });
+
+  it("gives a stream and item their team's colour", () => {
+    const { categories } = project(tree());
+    expect(categories.map((c) => c.color)).toEqual([
+      hexToNumber("#297373"),
+      hexToNumber("#297373"),
+      hexToNumber("#297373"),
+    ]);
+  });
+
+  it("lets a row override the colour it would inherit", () => {
+    const { categories } = project(tree({ streamColor: "#ff0000" }));
+    expect(categories[1].color).toBe(hexToNumber("#ff0000"));
+    // The override cascades to the item, which has no colour of its own.
+    expect(categories[2].color).toBe(hexToNumber("#ff0000"));
+    expect(categories[0].color).toBe(hexToNumber("#297373"));
+  });
+
+  it("leaves a row with no coloured ancestor uncoloured", () => {
+    const plain = doc({ rows: [{ id: "t1", name: "Team", kind: "team" }] });
+    expect(project(plain).categories[0].color).toBeUndefined();
   });
 });

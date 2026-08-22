@@ -1,4 +1,4 @@
-import type { PlanDocument, Task } from "../core/types";
+import type { PlanDocument, Row, Task } from "../core/types";
 import { endOfWork, workingUnitsBetween } from "../core/workdays";
 
 export interface GanttCategory {
@@ -20,7 +20,8 @@ export interface GanttTask {
 
 /** PlanDocument stores 0-100; the chart wants 0-1. */
 export const toChartProgress = (percent: number): number => percent / 100;
-export const fromChartProgress = (fraction: number): number => Math.round(fraction * 100);
+export const fromChartProgress = (fraction: number): number =>
+  Math.round(fraction * 100);
 
 export function hexToNumber(hex: string): number {
   const cleaned = hex.replace(/^#/, "");
@@ -69,9 +70,14 @@ function rollUpGroups(doc: PlanDocument): GanttTask[] {
     // Spans must be measured the way the chart measures them: in working
     // units, so a group bar reaches exactly as far as its longest child.
     const start = Math.min(...children.map((t) => t.start));
-    const end = Math.max(...children.map((t) => endOfWork(t.start, t.duration, doc.calendar)));
+    const end = Math.max(
+      ...children.map((t) => endOfWork(t.start, t.duration, doc.calendar)),
+    );
     const weight = children.reduce((sum, t) => sum + t.duration, 0);
-    const weighted = children.reduce((sum, t) => sum + t.duration * (t.progress ?? 0), 0);
+    const weighted = children.reduce(
+      (sum, t) => sum + t.duration * (t.progress ?? 0),
+      0,
+    );
 
     out.push({
       id: row.id,
@@ -83,18 +89,55 @@ function rollUpGroups(doc: PlanDocument): GanttTask[] {
   return out;
 }
 
-export function project(doc: PlanDocument): { categories: GanttCategory[]; tasks: GanttTask[] } {
+/**
+ * A row's own colour, or the nearest coloured ancestor's.
+ *
+ * Every category must reach the chart with a colour: given one without, the
+ * chart takes the next entry from its own rotating set, so the row changes
+ * colour on every redraw.
+ */
+function resolveColor(doc: PlanDocument): Map<string, string> {
+  const byId = new Map(doc.rows.map((r) => [r.id, r]));
+  const resolved = new Map<string, string>();
+
+  for (const row of doc.rows) {
+    let current: Row | undefined = row;
+    const seen = new Set<string>();
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      if (current.color !== undefined) {
+        resolved.set(row.id, current.color);
+        break;
+      }
+      current =
+        current.parentId !== undefined ? byId.get(current.parentId) : undefined;
+    }
+  }
+  return resolved;
+}
+
+export function project(doc: PlanDocument): {
+  categories: GanttCategory[];
+  tasks: GanttTask[];
+} {
+  const colors = resolveColor(doc);
   const categories = doc.rows.map((row) => {
     const c: GanttCategory = { id: row.id, name: row.name };
     if (row.parentId !== undefined) c.parentId = row.parentId;
-    if (row.color !== undefined) c.color = hexToNumber(row.color);
+    const color = colors.get(row.id);
+    if (color !== undefined) c.color = hexToNumber(color);
     if (row.collapsed !== undefined) c.collapsed = row.collapsed;
     return c;
   });
 
   const tasks = doc.tasks.map((task) => {
-    const t: GanttTask = { id: task.id, start: task.start, duration: task.duration };
-    if (task.progress !== undefined) t.progress = toChartProgress(task.progress);
+    const t: GanttTask = {
+      id: task.id,
+      start: task.start,
+      duration: task.duration,
+    };
+    if (task.progress !== undefined)
+      t.progress = toChartProgress(task.progress);
     if (task.linkTo !== undefined) t.linkTo = task.linkTo;
     return t;
   });
@@ -106,11 +149,15 @@ export function project(doc: PlanDocument): { categories: GanttCategory[]; tasks
  * The window a "fit to plan" zoom should show. Derived from stored data rather
  * than the chart's internal selection state, so it is pure and testable.
  */
-export function planExtent(doc: PlanDocument): { start: number; end: number } | null {
+export function planExtent(
+  doc: PlanDocument,
+): { start: number; end: number } | null {
   if (doc.tasks.length === 0) return null;
 
   const start = Math.min(...doc.tasks.map((t) => t.start));
-  const end = Math.max(...doc.tasks.map((t) => endOfWork(t.start, t.duration, doc.calendar)));
+  const end = Math.max(
+    ...doc.tasks.map((t) => endOfWork(t.start, t.duration, doc.calendar)),
+  );
 
   // A plan of milestones alone has zero width, which would zoom to a point.
   const DAY = 86_400_000;
