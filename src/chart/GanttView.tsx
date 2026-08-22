@@ -81,6 +81,13 @@ export function GanttView({
     chart.addButton.hide(0);
     chart.clearButton.hide(0);
 
+    // The same reason covers the per-row delete button, which selecting a row
+    // reveals. GanttCategoryAxis.deleteDataItem removes the row and cascades to
+    // its children, but ingest only reads back series data, so the resulting
+    // document fails its invariants and is discarded — leaving the chart
+    // showing a row the store still has, until the next edit makes it reappear.
+    chart.yAxis.xButton.hide(0);
+
     // Echo guard #1: ignore valueschanged fired by our own writes.
     let applying = false;
 
