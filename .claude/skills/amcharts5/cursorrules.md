@@ -1,0 +1,907 @@
+# amCharts 5 – AI coding rules
+# Drop this file in your project root as .cursorrules (Cursor),
+# .windsurfrules (Windsurf), or .github/copilot-instructions.md (VS Code + Copilot)
+# Docs: https://www.amcharts.com/docs/v5/
+
+## Version
+
+Always use **amCharts 5** (not v3 or v4). The APIs are completely different.
+amCharts 5 uses Canvas rendering (not SVG like v4).
+
+## Object creation
+
+amCharts 5 does NOT use `new ClassName()`. Always use the static `.new()` factory:
+
+```
+// ✅ CORRECT
+const root = am5.Root.new("chartdiv");
+const chart = root.container.children.push(am5xy.XYChart.new(root, { ... }));
+
+// ❌ WRONG – never use `new` keyword
+const root = new am5.Root("chartdiv");
+const chart = new am5xy.XYChart(root, { ... });
+```
+
+Every `.new()` call takes `root` as the first argument (except Root itself which takes the div ID).
+
+## Core setup pattern
+
+Every chart follows this structure:
+
+```js
+// 1. Create root
+const root = am5.Root.new("chartdiv");
+
+// 2. Apply theme(s)
+root.setThemes([am5themes_Animated.new(root)]);
+
+// 3. Create chart
+const chart = root.container.children.push(
+  am5xy.XYChart.new(root, { layout: root.verticalLayout })
+);
+
+// 4. Create axes, series, etc.
+// 5. Set data LAST (important!)
+series.data.setAll([...]);
+
+// 6. Play animations
+series.appear(1000);
+chart.appear(1000, 100);
+```
+
+**CRITICAL:** Always set data as late as possible. Once data is set, related objects are created — configuration applied afterward may not take effect.
+
+## Packages and imports
+
+### ES modules / TypeScript
+```ts
+import * as am5 from "@amcharts/amcharts5";
+import * as am5xy from "@amcharts/amcharts5/xy";
+import * as am5percent from "@amcharts/amcharts5/percent";
+import * as am5map from "@amcharts/amcharts5/map";
+import * as am5hierarchy from "@amcharts/amcharts5/hierarchy";
+import * as am5flow from "@amcharts/amcharts5/flow";
+import * as am5radar from "@amcharts/amcharts5/radar";
+import * as am5stock from "@amcharts/amcharts5/stock";
+import * as am5wc from "@amcharts/amcharts5/wc";
+import * as am5venn from "@amcharts/amcharts5/venn";
+import * as am5gantt from "@amcharts/amcharts5/gantt";
+import * as am5timeline from "@amcharts/amcharts5/timeline";
+import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
+import am5themes_Dark from "@amcharts/amcharts5/themes/Dark";
+
+// Map geodata (example)
+import am5geodata_worldLow from "@amcharts/amcharts5-geodata/worldLow";
+```
+
+### CDN / script tags
+```html
+<script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+<script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+<!-- Geodata for maps -->
+<script src="https://cdn.amcharts.com/lib/5/geodata/worldLow.js"></script>
+```
+
+CDN script objects use `am5` (core), `am5xy`, `am5percent`, `am5map`, `am5hierarchy`, `am5flow`, `am5radar`, `am5stock`, `am5timeline`, `am5wc`, `am5venn`, `am5gantt` namespaces.
+Themes: `am5themes_Animated`, `am5themes_Dark`, etc.
+Geodata: `am5geodata_worldLow`, `am5geodata_usaLow`, etc.
+
+### Package > chart type mapping
+
+| You need | Import package |
+|----------|---------------|
+| XY chart (line, bar, column, area, candlestick) | `@amcharts/amcharts5/xy` |
+| Pie, donut, funnel, pyramid | `@amcharts/amcharts5/percent` |
+| Map / choropleth / map sankey | `@amcharts/amcharts5/map` + geodata |
+| Radar / gauge | `@amcharts/amcharts5/radar` (also needs xy) |
+| Treemap, sunburst, force-directed, pack | `@amcharts/amcharts5/hierarchy` |
+| Sankey, chord, arc diagram | `@amcharts/amcharts5/flow` |
+| Stock chart | `@amcharts/amcharts5/stock` |
+| Word cloud | `@amcharts/amcharts5/wc` |
+| Venn diagram | `@amcharts/amcharts5/venn` |
+| Timeline (serpentine, spiral, curve) | `@amcharts/amcharts5/timeline` (also needs xy) |
+| Gantt chart | `@amcharts/amcharts5/gantt` (also needs xy) |
+
+## Settings pattern
+
+amCharts 5 uses `.set()`, `.setAll()`, and `.get()` — not direct property assignment:
+
+```js
+// ✅ CORRECT
+series.set("valueField", "value");
+series.setAll({ valueField: "value", categoryField: "category" });
+const val = series.get("valueField");
+
+// ❌ WRONG
+series.valueField = "value";
+```
+
+Settings are passed in the second argument of `.new()`:
+```js
+am5xy.LineSeries.new(root, {
+  xAxis: xAxis,
+  yAxis: yAxis,
+  valueYField: "value",
+  valueXField: "date"
+})
+```
+
+## Dark theme
+
+If the page has a dark background, always include the Dark theme. Without it, labels and grid will be invisible:
+
+```js
+root.setThemes([
+  am5themes_Animated.new(root),
+  am5themes_Dark.new(root)        // must come after Animated
+]);
+```
+
+**Rule:** Only add Dark theme when background is clearly dark. Default to white/light with no Dark theme unless the user asks.
+
+## Available themes (as of 5.20.0)
+
+- **Behavioral:** `Animated`, `Micro`, `Responsive`
+- **Light palettes:** `Dataviz`, `Frozen`, `Kelly`, `Material`, `Moonrise`, `Spirited`, `Ember`, `Nord`, `Pastel`, `Petroleum`, `Savanna`, `Colorblind` (Okabe-Ito, color-blindness safe), `Patterns` (pattern fills instead of flat colors)
+- **Dark:** `Dark`, `Midnight`, plus dark variants of most palettes — `DatavizDark`, `FrozenDark`, `KellyDark`, `MaterialDark`, `MoonriseDark`, `SpiritedDark`, `NordDark`, `PastelDark`, `ColorblindDark`, `PatternsDark`
+
+Palette themes are additive — combine with `Animated`. The `*Dark` variants already carry dark interface colors, so do NOT also add `Dark`.
+
+**Parameterized themes (5.20.0)** — `Monochrome` and `Adaptive` generate a palette from colors you pass in. They are **factory functions**, not classes:
+
+```js
+import am5themes_Monochrome from "@amcharts/amcharts5/themes/Monochrome";
+import am5themes_Adaptive from "@amcharts/amcharts5/themes/Adaptive";
+
+// Single-hue lightness ramp, optional accent on the first series
+root.setThemes([
+  am5themes_Animated.new(root),
+  am5themes_Monochrome(root, { color: 0x2c6e91, accent: 0xff7f0e, count: 7, dark: false })
+]);
+
+// Full palette generated from one or two base colors (first color IS baseColor)
+root.setThemes([
+  am5themes_Animated.new(root),
+  am5themes_Adaptive(root, { baseColor: 0x2c6e91, baseColor2: 0xffdd00, count: 10, dark: false })
+]);
+```
+
+Both handle dark mode via `dark: true` — do not also add the `Dark` theme.
+
+## Colors — use defaults, don't invent palettes
+
+amCharts assigns colors automatically. Do NOT create custom color palettes unless the user explicitly requests specific colors.
+
+```js
+// Get default colors programmatically
+var colors = chart.get("colors");       // XY, radar, etc.
+var colors = series.get("colors");      // pie/percent charts
+
+colors.getIndex(0);   // color by index (no counter advance)
+colors.next();        // next color in sequence (advances counter)
+colors.reset();       // restart counter
+
+// Only if user requests custom colors:
+colors.set("colors", [am5.color(0x095256), am5.color(0x087f8c)]);
+```
+
+## Common chart recipes
+
+### XY chart with category axis (bar/column)
+```js
+const xAxis = chart.xAxes.push(am5xy.CategoryAxis.new(root, {
+  categoryField: "category",
+  renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 30 })
+}));
+
+const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+  renderer: am5xy.AxisRendererY.new(root, {})
+}));
+
+const series = chart.series.push(am5xy.ColumnSeries.new(root, {
+  xAxis: xAxis,
+  yAxis: yAxis,
+  valueYField: "value",
+  categoryXField: "category"
+}));
+
+xAxis.data.setAll(data);  // CategoryAxis needs data too!
+series.data.setAll(data);
+```
+
+### XY chart with date axis (time series)
+```js
+const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+  baseInterval: { timeUnit: "day", count: 1 },
+  renderer: am5xy.AxisRendererX.new(root, { minGridDistance: 50 })
+}));
+
+const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+  renderer: am5xy.AxisRendererY.new(root, {})
+}));
+
+const series = chart.series.push(am5xy.LineSeries.new(root, {
+  xAxis: xAxis,
+  yAxis: yAxis,
+  valueYField: "value",
+  valueXField: "date"
+}));
+
+// Date values must be timestamps (milliseconds)
+series.data.setAll([
+  { date: new Date(2024, 0, 1).getTime(), value: 100 },
+  { date: new Date(2024, 1, 1).getTime(), value: 120 }
+]);
+```
+
+### Pie / Donut chart
+```js
+const chart = root.container.children.push(
+  am5percent.PieChart.new(root, {
+    innerRadius: am5.percent(50),  // 0 for pie, >0 for donut
+    layout: root.verticalLayout
+  })
+);
+
+const series = chart.series.push(am5percent.PieSeries.new(root, {
+  valueField: "value",
+  categoryField: "category"
+}));
+
+series.data.setAll([
+  { category: "A", value: 10 },
+  { category: "B", value: 7 },
+  { category: "C", value: 3 }
+]);
+```
+
+### Map chart (choropleth)
+```js
+const chart = root.container.children.push(
+  am5map.MapChart.new(root, {
+    panX: "rotateX",
+    projection: am5map.geoMercator()
+  })
+);
+
+const polygonSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {
+  geoJSON: am5geodata_worldLow,
+  valueField: "value",
+  calculateAggregates: true
+}));
+```
+
+### Map Sankey (geographic flow bands)
+```js
+// Requires: map package + geodata (NOT flow package)
+var polygonSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {
+  geoJSON: am5geodata_worldLow
+}));
+var sankeySeries = chart.series.push(am5map.MapSankeySeries.new(root, {
+  polygonSeries: polygonSeries,  // required: resolves country IDs to centroids
+  maxWidth: 5                    // max band width in geographic degrees
+}));
+sankeySeries.mapPolygons.template.setAll({
+  fillOpacity: 0.5, strokeOpacity: 0,
+  tooltipText: "{sourceId} > {targetId}: {value}"
+});
+// MapSankeySeries auto-resolves sourceId/targetId once polygonSeries is ready —
+// set data directly, no datavalidated wrapper needed.
+sankeySeries.data.setAll([
+  { sourceId: "BR", targetId: "DE", value: 350 },
+  { sourceId: "CN", targetId: "US", value: 600 }
+]);
+// Alternative: use explicit coordinates (skips centroid lookup entirely):
+// { sourceLongitude: 2.35, sourceLatitude: 48.86, targetLongitude: -74.01, targetLatitude: 40.71, value: 100 }
+```
+
+### Funnel chart
+```js
+const chart = root.container.children.push(
+  am5percent.SlicedChart.new(root, { layout: root.verticalLayout })
+);
+
+const series = chart.series.push(am5percent.FunnelSeries.new(root, {
+  name: "Funnel",
+  valueField: "value",
+  categoryField: "stage",
+  orientation: "vertical",
+  bottomRatio: 0   // 0 = trapezoids (classic funnel), 1 = rectangles
+}));
+
+series.data.setAll([
+  { stage: "Visits", value: 10000 },
+  { stage: "Signups", value: 5200 },
+  { stage: "Paid", value: 1400 }
+]);
+```
+
+### Stock chart (candlestick with toolbar)
+```js
+// Requires: index.js, xy.js, stock.js
+// HTML: <div id="chartcontrols"></div> <div id="chartdiv"></div>
+const stockChart = root.container.children.push(
+  am5stock.StockChart.new(root, {})
+);
+
+const mainPanel = stockChart.panels.push(
+  am5stock.StockPanel.new(root, { wheelY: "zoomX", panX: true, panY: true })
+);
+
+const dateAxis = mainPanel.xAxes.push(am5xy.DateAxis.new(root, {
+  baseInterval: { timeUnit: "day", count: 1 },
+  renderer: am5xy.AxisRendererX.new(root, {})
+}));
+
+const valueAxis = mainPanel.yAxes.push(am5xy.ValueAxis.new(root, {
+  renderer: am5xy.AxisRendererY.new(root, {})
+}));
+
+const valueSeries = mainPanel.series.push(am5xy.CandlestickSeries.new(root, {
+  name: "STCK",
+  xAxis: dateAxis, yAxis: valueAxis,
+  valueXField: "Date", valueYField: "Close",
+  highValueYField: "High", lowValueYField: "Low",
+  openValueYField: "Open", calculateAggregates: true
+}));
+
+stockChart.set("stockSeries", valueSeries);  // CRITICAL: register main series
+valueSeries.data.setAll(data);
+```
+
+### Serpentine timeline
+```js
+const chart = root.container.children.push(am5timeline.SerpentineChart.new(root, {
+  orientation: "vertical", levelCount: 3,
+  yAxisRadius: am5.percent(50) // Percent; no yAxisInnerRadius setting exists
+}));
+const yRenderer = am5timeline.AxisRendererCurveY.new(root, {}); // create Y renderer FIRST
+const xAxis = chart.xAxes.push(am5xy.DateAxis.new(root, {
+  baseInterval: { timeUnit: "day", count: 1 },
+  renderer: am5timeline.AxisRendererCurveX.new(root, { yRenderer: yRenderer }) // NOT AxisRendererX
+}));
+const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+  renderer: yRenderer // reuse the same renderer
+}));
+const series = chart.series.push(am5timeline.CurveLineSeries.new(root, { // NOT LineSeries
+  xAxis, yAxis, valueYField: "value", valueXField: "date"
+}));
+series.data.setAll(data); // timestamps for DateAxis
+```
+
+### Word cloud
+```js
+// Requires: index.js, wc.js
+const series = root.container.children.push(am5wc.WordCloud.new(root, {
+  categoryField: "tag",
+  valueField: "weight",
+  maxFontSize: am5.percent(20),
+  minFontSize: am5.percent(3)
+}));
+
+series.labels.template.setAll({ tooltipText: "{category}: {value}" });
+
+series.data.setAll([
+  { tag: "JavaScript", weight: 64 },
+  { tag: "Python", weight: 48 },
+  { tag: "React", weight: 28 }
+]);
+```
+
+### Venn diagram
+```js
+// Requires: index.js, venn.js
+// NOTE: There is NO VennDiagram class — push Venn directly into a Container
+const container = root.container.children.push(am5.Container.new(root, {
+  width: am5.percent(100),
+  height: am5.percent(100),
+  layout: root.verticalLayout
+}));
+
+const series = container.children.push(am5venn.Venn.new(root, {
+  categoryField: "name",
+  valueField: "value",
+  intersectionsField: "sets"
+}));
+
+series.data.setAll([
+  { name: "A", value: 100 },
+  { name: "B", value: 80 },
+  { name: "A∩B", value: 30, sets: ["A", "B"] }
+]);
+```
+
+### Gantt chart
+```js
+// Requires: index.js, xy.js, plugins/colorPicker.js, gantt.js
+const chart = root.container.children.push(am5gantt.Gantt.new(root, {
+  editable: true,
+  durationUnit: "day"
+}));
+
+// Gantt uses TWO separate data calls — NOT nested children
+chart.yAxis.data.setAll([
+  { id: "phase1", name: "Phase 1", color: am5.color(0x297373) },
+  { id: "taskA", name: "Task A", parentId: "phase1" },
+  { id: "taskB", name: "Task B", parentId: "phase1" }
+]);
+chart.series.data.setAll([
+  { id: "phase1", start: new Date(2024, 0, 1).getTime(), duration: 10, progress: 100 },
+  { id: "taskA", start: new Date(2024, 0, 1).getTime(), duration: 5, progress: 100 },
+  { id: "taskB", start: new Date(2024, 0, 6).getTime(), duration: 5, progress: 80 }
+]);
+```
+
+## Events
+
+```js
+// Click on elements
+series.columns.template.events.on("click", function(ev) {
+  console.log("Clicked:", ev.target.dataItem.dataContext);
+});
+
+// Lifecycle
+series.events.on("datavalidated", function() { /* data ready */ });
+
+// One-time listener
+series.events.once("datavalidated", function() { /* runs once */ });
+
+// Setting change watch
+sprite.on("width", function(width) { console.log("Width:", width); });
+
+// Remove listener
+var disposer = sprite.events.on("click", handler);
+disposer.dispose();
+
+// Common events: click, pointerover, pointerout, pointerdown, globalpointermove
+```
+
+## Adapters
+
+Dynamically modify a setting value before it's applied:
+
+```js
+series.columns.template.adapters.add("fill", function(fill, target) {
+  return target.dataItem.get("valueY") > 100
+    ? am5.color(0x00cc00)
+    : am5.color(0xcc0000);
+});
+```
+
+## States
+
+```js
+series.columns.template.states.create("hover", {
+  fillOpacity: 0.8,
+  scale: 1.05
+});
+// Built-in states: "hover", "active", "disabled", "hidden"
+```
+
+## Heat rules
+
+Color or size elements by data value. Requires `calculateAggregates: true` on the series (unless `minValue`/`maxValue` are set).
+
+```js
+// Color columns by value
+series.set("heatRules", [{
+  target: series.columns.template,
+  dataField: "valueY",
+  min: am5.color(0xe5dc36),
+  max: am5.color(0x5faa46),
+  key: "fill"
+}]);
+
+// Scale bullet radius by value — bullets need am5.Template
+var circleTemplate = am5.Template.new({});
+series.bullets.push(function() {
+  return am5.Bullet.new(root, {
+    sprite: am5.Circle.new(root, {
+      fill: series.get("fill")
+    }, circleTemplate)              // template as 3rd arg
+  });
+});
+series.set("heatRules", [{
+  target: circleTemplate,
+  dataField: "valueY",
+  min: 3, max: 25,
+  key: "radius"
+}]);
+```
+
+**Heat rule keys:** `"fill"`, `"radius"`, `"opacity"`, `"strokeWidth"`, `"fontSize"`, etc.
+**customFunction:** `(sprite, min, max, value)` for full control.
+
+**HeatLegend:**
+```js
+var heatLegend = chart.children.push(am5.HeatLegend.new(root, {
+  orientation: "horizontal",
+  startColor: am5.color(0xe5dc36),
+  endColor: am5.color(0x5faa46),
+  startText: "Low",
+  endText: "High",
+  stepCount: 5
+}));
+series.events.on("datavalidated", function() {
+  heatLegend.set("startValue", series.getPrivate("valueLow"));
+  heatLegend.set("endValue", series.getPrivate("valueHigh"));
+});
+```
+
+## Accessibility
+
+```js
+series.columns.template.setAll({
+  focusable: true,
+  ariaLabel: "{categoryX}: {valueY}",
+  role: "figure"
+});
+// Keyboard: TAB to navigate focusable elements, ENTER to click
+// focusableGroup: "series1" — TAB to first, arrows within group
+```
+
+## Container & Layout
+
+```js
+var container = root.container.children.push(am5.Container.new(root, {
+  width: am5.percent(100),
+  height: am5.percent(100),
+  layout: root.verticalLayout  // also: horizontalLayout, gridLayout
+}));
+container.setAll({ paddingTop: 10, paddingBottom: 10, marginLeft: 20 });
+```
+
+**Layout options:**
+
+| Layout | Access | Behavior |
+|--------|--------|----------|
+| Vertical | `root.verticalLayout` | Children stacked top-to-bottom |
+| Horizontal | `root.horizontalLayout` | Children in a row left-to-right |
+| Grid | `root.gridLayout` | Multi-column grid |
+| Custom grid | `am5.GridLayout.new(root, { maxColumns: 3 })` | Grid with custom column count |
+| None | omit `layout` | Children placed at x/y coordinates |
+
+## UI Elements
+
+amCharts 5 provides built-in interactive UI widgets. **Prefer these over HTML elements** when building controls.
+
+| Element | Class | Description |
+|---------|-------|-------------|
+| Button | `am5.Button` | Clickable with label, icon, hover/down/active states |
+| Slider | `am5.Slider` | Single-value slider (0-1 range), fires `rangechanged` |
+| Scrollbar | `am5.Scrollbar` | Two-grip range selector |
+| NumericStepper | `am5.NumericStepper` | Number input with up/down arrows |
+| ProgressPie | `am5.ProgressPie` | Circular progress indicator |
+| SpriteResizer | `am5.SpriteResizer` | Drag-to-resize handles on any sprite |
+| EditableLabel | `am5.EditableLabel` | Label editable on click |
+| Modal | `am5.Modal` | HTML overlay dialog with `open()`/`close()` |
+
+```js
+// Slider controlling a chart value
+var slider = container.children.push(am5.Slider.new(root, {
+  orientation: "horizontal",
+  start: 0.5,
+  width: am5.percent(80),
+  centerX: am5.percent(50),
+  x: am5.percent(50)
+}));
+slider.events.on("rangechanged", function(ev) {
+  var value = ev.start;  // 0-1 range
+});
+
+// Button
+var button = container.children.push(am5.Button.new(root, {
+  label: am5.Label.new(root, { text: "Reset" }),
+  centerX: am5.percent(50),
+  x: am5.percent(50)
+}));
+button.events.on("click", function() {
+  slider.set("start", 0.5);
+});
+```
+
+## Dynamic data
+
+```js
+series.data.setAll(newData);              // replace all (NO animation)
+series.data.push({ cat: "X", val: 1 });  // add
+series.data.setIndex(0, newItem);         // update at index (ANIMATES)
+series.data.removeIndex(2);               // remove at index
+series.data.insertIndex(1, newItem);      // insert at index
+
+// To update data WITH animation, use setIndex() per item:
+// newData.forEach(function(item, i) { series.data.setIndex(i, item); });
+
+// IMPORTANT: series.dataItems is a plain array, NOT a List
+// ❌ series.dataItems.each(fn)           — will throw
+// ✅ series.dataItems.forEach(fn)        — standard JS
+// ✅ am5.array.each(series.dataItems, function(dataItem) {})
+```
+
+## Data processor (for external/API data)
+
+```js
+series.data.processor = am5.DataProcessor.new(root, {
+  dateFields: ["date"],
+  dateFormat: "yyyy-MM-dd",
+  numericFields: ["value"],
+  emptyAs: 0
+});
+// Configure BEFORE setting data
+```
+
+## Common components
+
+### Legend
+```js
+const legend = chart.children.push(am5.Legend.new(root, {
+  centerX: am5.percent(50),
+  x: am5.percent(50)
+}));
+legend.data.setAll(chart.series.values);
+```
+
+### Cursor (XY charts)
+```js
+chart.set("cursor", am5xy.XYCursor.new(root, {
+  behavior: "none"  // "zoomX", "zoomY", "zoomXY", "selectX", "selectXY", "none"
+}));
+```
+
+### Scrollbar (XY charts)
+```js
+chart.set("scrollbarX", am5.Scrollbar.new(root, {
+  orientation: "horizontal"
+}));
+```
+
+### Tooltip
+```js
+series.set("tooltip", am5.Tooltip.new(root, {
+  labelText: "{categoryX}: {valueY}"
+}));
+```
+
+### Chart title
+Do NOT add titles as HTML — they won't be part of the canvas or exports. Use `am5.Label` in the container BEFORE the chart, with `verticalLayout`:
+```js
+root.container.children.push(am5.Label.new(root, {
+  text: "Chart Title",
+  fontSize: "1.3em",
+  x: am5.p50,
+  centerX: am5.p50
+}));
+root.container.set("layout", root.verticalLayout);
+
+var chart = root.container.children.push(am5xy.XYChart.new(root, { ... }));
+```
+
+## Key differences from amCharts 4 (common AI mistakes)
+
+| amCharts 4 (WRONG) | amCharts 5 (CORRECT) |
+|---------------------|----------------------|
+| `am4core.create("div", am4charts.XYChart)` | `am5.Root.new("div")` then `am5xy.XYChart.new(root, {})` |
+| `new am4charts.CategoryAxis()` | `am5xy.CategoryAxis.new(root, { ... })` |
+| `chart.data = [...]` | `series.data.setAll([...])` |
+| `series.dataFields.valueY = "v"` | `valueYField: "v"` in `.new()` settings |
+| `am4core.color("#f00")` | `am5.color(0xff0000)` or `am5.color("#f00")` |
+| `new am4charts.Legend()` | `am5.Legend.new(root, {})` |
+| `chart.cursor = new am4charts.XYCursor()` | `chart.set("cursor", am5xy.XYCursor.new(root, {}))` |
+| SVG-based rendering | Canvas-based rendering |
+| `am4core.useTheme(am4themes_animated)` | `root.setThemes([am5themes_Animated.new(root)])` |
+
+## Common pitfalls
+
+1. **CategoryAxis needs data too** — Unlike ValueAxis, CategoryAxis must receive data: `xAxis.data.setAll(data)` in addition to `series.data.setAll(data)`.
+
+2. **Date values must be timestamps** — DateAxis expects numbers (ms since epoch), not Date objects or strings. Use `new Date(...).getTime()`.
+
+3. **Renderer is required for every axis** — Always pass a `renderer` when creating an axis: `am5xy.AxisRendererX.new(root, {})`.
+
+4. **Don't forget `root` in `.new()` calls** — Every `.new()` call (except Root itself) takes `root` as the first arg.
+
+5. **Dispose via root** — To clean up, call `root.dispose()`, not `chart.dispose()`.
+
+6. **Colors** — Use `am5.color(0xFF0000)` or `am5.color("#ff0000")`. For color sets, access `chart.get("colors")`.
+
+7. **Percent values** — Use `am5.percent(50)` not plain `50` or `"50%"` when a setting expects a Percent value.
+
+8. **children.push()** — Adding elements to containers uses `.children.push()` which returns the element. Always capture the return value.
+
+9. **No CSS styling** — amCharts 5 renders to Canvas, not DOM/SVG. You cannot style chart elements with CSS. Use themes or `.set()`/`.setAll()`.
+
+10. **Hierarchy charts are chart-less** — Treemap, force-directed, etc. add series directly to `root.container` (or a wrapper Container), not to a chart object.
+
+11. **`dataItems` is a plain array** — `series.dataItems` does NOT have `.each()`. Use `series.dataItems.forEach(fn)` or `am5.array.each(series.dataItems, fn)`. Only `series.data` (the ListData object) has `.each()`.
+
+12. **CDN script load order matters** — `index.js` must load first, then `xy.js`, then any package that depends on it (`radar.js`, `timeline.js`, `gantt.js`). Wrong order causes runtime errors. Correct order: `index.js` > `xy.js` > `radar.js` / `timeline.js` / `gantt.js` > `themes/*.js`.
+
+13. **No `minorGrid` / `minorTicks` / `minorLabels` objects** — These properties don't exist. Enable minor grid via renderer flags:
+```js
+am5xy.AxisRendererX.new(root, {
+  minorGridEnabled: true,    // shows minor grid lines
+  minorLabelsEnabled: true   // optional: shows minor labels
+})
+```
+Style minor elements through theme rules targeting the `"minor"` tag — they auto-inherit main grid appearance but slightly lighter.
+
+14. **Flow chart animated bullets go on `series.bullets`, NOT `series.links.template.bullets`** — To animate labels/circles flowing along Sankey/Chord links, use `series.bullets.push()`. Animate `bullet.locationX` (Sankey) or `bullet.locationY` (Chord) from 0>1 with `loops: Infinity`. Use an adapter on opacity based on position for fade effect:
+```js
+// Sankey: use locationX. For Chord: replace ALL locationX with locationY.
+series.bullets.push(function(root, series, dataItem) {
+  var label = am5.Label.new(root, {
+    text: "${value}B", populateText: true,
+    centerX: am5.p50, fill: am5.color(0xffffff)
+  });
+  var bullet = am5.Bullet.new(root, {
+    locationX: 0, sprite: label, autoRotate: true
+  });
+  bullet.animate({
+    key: "locationX", from: 0, to: 1,
+    duration: Math.random() * 10000 + 2000, loops: Infinity
+  });
+  label.adapters.add("opacity", function(opacity) {
+    return 0.5 - Math.abs(0.5 - bullet.get("locationX"));
+  });
+  bullet.on("locationX", function() {
+    label.set("opacity", label.get("opacity"));
+  });
+  return bullet;
+});
+```
+
+15. **`MapPointSeries` needs `latitudeField`/`longitudeField` unless your data fields are named exactly `latitude`/`longitude`** — Since 5.16.1 those are the defaults, so matching data works undeclared. Any other naming silently renders nothing:
+```js
+// FINE since 5.16.1 — data uses "latitude"/"longitude", which are the defaults
+am5map.MapPointSeries.new(root, {})
+
+// WRONG — data uses lat/lng, points won't show
+am5map.MapPointSeries.new(root, {})
+
+// CORRECT — tell the series which fields hold coordinates
+am5map.MapPointSeries.new(root, {
+  latitudeField: "lat",
+  longitudeField: "lng"
+})
+```
+Neither is needed when using `pushDataItem({ latitude: ..., longitude: ... })`, which passes coordinates directly to the data item. On amCharts older than 5.16.1 there were no defaults — declare both fields explicitly if you need to support those versions.
+
+16. **`data.setAll()` does NOT animate — use `data.setIndex()` for animated updates** — `series.data.setAll(newData)` replaces everything instantly with no transition. To update data with smooth animation, use `series.data.setIndex(i, newItem)` per item:
+```js
+// WRONG — no animation
+series.data.setAll(newData);
+
+// CORRECT — animates each value change
+newData.forEach(function(item, i) {
+  series.data.setIndex(i, item);
+});
+```
+
+17. **`color.lighten()` / `color.darken()` are NOT instance methods** — `am5.color(0xff0000).lighten(0.3)` does NOT work. Use static methods: `am5.Color.lighten(color, 0.3)` to lighten, `am5.Color.lighten(color, -0.3)` to darken. There is NO `darken()` method — use negative lighten. Also: `am5.Color.brighten()`, `am5.Color.saturate()`.
+
+18. **Venn diagram has no `VennDiagram` class** — `am5venn.Venn` is pushed directly into a `Container`, NOT into a chart's `series`. See references/venn.md.
+
+19. **Timeline `AxisRendererCurveX` requires `yRenderer`** — Always create the Y renderer first, then pass it:
+```js
+var yRenderer = am5timeline.AxisRendererCurveY.new(root, {});
+var xRenderer = am5timeline.AxisRendererCurveX.new(root, {
+  yRenderer: yRenderer
+});
+```
+Without this, crashes with `Cannot read properties of undefined (reading 'axis')`.
+
+20. **Gantt data uses TWO separate calls** — Do NOT use `chart.data.setAll()`. Set categories on `chart.yAxis.data.setAll([{id, name, parentId, color}])` and tasks on `chart.series.data.setAll([{id, start, duration, progress, linkTo}])`. Use flat `parentId` for hierarchy, NOT nested `children` arrays. CDN order: `index.js` > `xy.js` > `plugins/colorPicker.js` > `gantt.js` > `themes/Animated.js`:
+```js
+// WRONG — single data call with nested children
+chart.data.setAll([{ name: "Task", children: [...] }]);
+
+// CORRECT — two separate calls with flat parentId hierarchy
+chart.yAxis.data.setAll([
+  { id: "phase1", name: "Phase 1", color: am5.color(0x297373) },
+  { id: "task1", name: "Task 1", parentId: "phase1" }
+]);
+chart.series.data.setAll([
+  { id: "phase1", start: timestamp, duration: 10, progress: 50 },
+  { id: "task1", start: timestamp, duration: 5, progress: 100, linkTo: ["phase1"] }
+]);
+```
+
+21. **No continent-level geodata at top-level CDN** — `geodata/europeLow.js` does NOT exist. Use `geodata/region/world/europeLow.js` (global: `am5geodata_region_world_europeLow`) or filter `worldLow` with `include: ["FR", "DE", "ES", ...]`.
+
+22. **Do not add chart titles as HTML** — HTML titles are outside the canvas and won't appear in exports. Use `am5.Label` pushed into the container BEFORE the chart, with `verticalLayout` on the container. See "Chart title" in Common components above.
+
+23. **`XYChartScrollbar` axes — never use `scrollbar.get("xAxis")`** — Axes passed to the scrollbar constructor are NOT stored as gettable settings. Create axes as separate variables, pass them to the scrollbar, and reuse those same variables for the scrollbar's inner series:
+```js
+// WRONG — scrollbar.get("xAxis") returns undefined
+var sbSeries = scrollbar.chart.series.push(am5xy.LineSeries.new(root, {
+  xAxis: scrollbar.get("xAxis"),   // undefined!
+  yAxis: scrollbar.get("yAxis")    // undefined!
+}));
+
+// CORRECT — reuse the axis variables
+var sbxAxis = am5xy.DateAxis.new(root, { renderer: am5xy.AxisRendererX.new(root, {}) });
+var sbyAxis = am5xy.ValueAxis.new(root, { renderer: am5xy.AxisRendererY.new(root, {}) });
+var scrollbar = am5xy.XYChartScrollbar.new(root, { xAxis: sbxAxis, yAxis: sbyAxis });
+var sbSeries = scrollbar.chart.series.push(am5xy.LineSeries.new(root, {
+  xAxis: sbxAxis, yAxis: sbyAxis, valueYField: "value", valueXField: "date"
+}));
+```
+
+24. **`am5.color()` only accepts hex integers or CSS strings** — `am5.color(0xff0000)`, `am5.color("#ff0000")`, `am5.color("rgb(255,0,0)")` are valid. `am5.color({ r: 255, g: 0, b: 0 })` is NOT — it throws.
+
+25. **`MapChart` has NO `"colors"` setting** — `chart.get("colors")` returns `undefined` on `MapChart`. Only XY, Radar, and Percent charts auto-create a ColorSet. For maps, create your own: `am5.ColorSet.new(root, {})`.
+
+26. **`VoronoiTreemap` has NO `.rectangles` property** — Unlike `Treemap` (which has `series.rectangles.template`), `VoronoiTreemap` renders organic polygon cells. Style via `series.nodes.template` and its children, not `.rectangles`.
+27. **Labels with data placeholders need `populateText: true`** — When a Label uses data field placeholders like `text: "{name}"`, you MUST also set `populateText: true`. Without it, the placeholder is not resolved and the label appears blank. This applies everywhere Labels display dynamic data — bullet labels, map point labels, etc. Example: `am5.Label.new(root, { text: "{name}", populateText: true, ... })`.
+28. **Globe rotation uses negative coordinates** — To center the globe (`geoOrthographic`) on a geographic point, set `rotationX` to **-longitude** and `rotationY` to **-latitude**. E.g., to center on Paris (48.86°N, 2.35°E): `chart.animate({ key: "rotationX", to: -2.35 }); chart.animate({ key: "rotationY", to: -48.86 });`. Using positive values rotates the globe the wrong way.
+29. **`positionOnLine` with multi-segment lines limits per-segment control** — `MapPointSeries` data items can animate along a line via `positionOnLine` (0>1). If the line has 3+ points (multi-segment), position 0.5 is the midpoint of the *entire* path, making per-segment effects (scaling at each segment midpoint, pausing between segments, etc.) difficult. For advanced per-segment animations, use **single-segment lines** (2 points each) and animate the bullet across them sequentially.
+30. **`MapSankeySeries` is in the map package, NOT the flow package** — Geographic Sankey bands on a map use `am5map.MapSankeySeries` from `@amcharts/amcharts5/map`. Do NOT import `@amcharts/amcharts5/flow` for this. It requires a `polygonSeries` setting pointing to a `MapPolygonSeries` to resolve country IDs to centroids. Data uses `{ sourceId, targetId, value }` with ISO alpha-2 country codes. Bands are styled via `sankeySeries.mapPolygons.template`, nodes via `sankeySeries.nodes.mapPolygons.template`. Supports waypoints, explicit lat/long coordinates, multi-level flows, and animated bullets via `locationX`. Data can be set directly (e.g. `sankeySeries.data.setAll([...])`) at any time — `MapSankeySeries` auto-resolves `sourceId`/`targetId` once the referenced `polygonSeries` finishes loading, so no `datavalidated` wrapper is needed. **Never** call `polygonSeries.data.setAll()` with custom objects — this replaces geoJSON-derived data items and breaks centroid resolution.
+
+31. **Do NOT exclude Antarctica (`exclude: ["AQ"]`) by default** — Many amCharts demos exclude Antarctica because they use Mercator projection where it appears disproportionately large. This is a demo-specific choice, not a best practice. Unless the user explicitly asks to exclude Antarctica, or references a demo that does so, keep Antarctica in the map. With non-Mercator projections (`geoNaturalEarth1`, `geoEqualEarth`, `geoOrthographic`, `geoEquirectangular`), Antarctica renders at a reasonable size.
+
+## Disposal (SPA / React / Angular / Vue)
+
+**Always call `root.dispose()`** — this cleans up all children, series, and event listeners.
+
+```js
+// React
+useLayoutEffect(() => {
+  const root = am5.Root.new("chartdiv");
+  // ... build chart
+  return () => { root.dispose(); };
+}, []);
+
+// Angular
+ngOnDestroy() { this.root?.dispose(); }
+
+// Vue
+onUnmounted(() => { root.dispose(); });
+```
+
+## Recent API changes (5.16 → 5.20.1)
+
+**Renamed settings** (old name still works but is deprecated):
+
+| Class(es) | Old | New | Since |
+|-----------|-----|-----|-------|
+| `MovingAverage`, `MovingAverageDeviation`, `MovingAverageEnvelope`, `BollingerBands` | `type` | `maType` | 5.18.0 |
+| `VoronoiTreemap` | `type` | `shapeType` | 5.18.0 |
+
+**Breaking — WordCloud (5.20.1):** layout is now computed synchronously in one pass. The per-data-item `ghostLabel` is gone and labels live in an internal container — use `series.labels` / `dataItem.get("label")` instead of walking `series.children`.
+
+**New settings worth knowing:**
+
+- New fill patterns `am5.StarPattern` and `am5.TrianglePattern` (5.20.0). `rotateShapes: true` on `RectanglePattern`/`StarPattern`/`TrianglePattern` rotates each shape around its own center instead of the whole grid — tiles seamlessly and is much faster.
+- `XYChart`: `strokeWidths` and `strokeDasharrays` — arrays cycled across line series as they are added, like `colors`. Distinguish series without relying on color.
+- `XYCursor`: `clickTolerance` (default `0`) — pixels outside the plot area where a zoom/select drag may start.
+- `Series`: `fillGradient` / `strokeGradient`. Bullets with no paint of their own inherit fill/stroke/gradient/pattern from the series — or from their own slice/node on pie, funnel, flow and hierarchy charts.
+- `XYSeries`: value fields (`valueYField`, …) can be changed after creation (re-set the data afterwards), and a series can be moved to a different `xAxis`/`yAxis`.
+- `WordCloud` (5.20.1): `svgPath` arranges words into a shape, with `maskByShape` and `shapeTolerance`; `randomizeAngles: false` and `randomness: 0` give a reproducible layout; `allowNesting: false` packs non-overlapping bounding boxes (use with opaque label backgrounds). `angles` now accepts **any** angle (e.g. `[0, -30, -45]`) — the old `0`/`±90`-only restriction is gone.
+- New `globalpointerdown` event on all elements (mirrors `globalpointermove`/`globalpointerup`).
+- `Root`: `sanitizeHTML` (default `true`, 5.19.0) sanitizes dynamically-set HTML; exports gained `escapeFormulas` (default `true`) against CSV/XLSX formula injection.
+- `MapChart`: `projectionName` string setting (5.19.0), e.g. `"geoOrthographic"` — mainly for JSON config; `am5map.registerProjection()` adds more.
+- `Tree`: `fitNodes` (5.18.0), `nodeSeparation` / `clustered` (5.16.2). `Hierarchy`: `parentIdField` + `setFlatData()` (5.16.2). `ValueAxis`: `syncZeros` (5.16.2).
+- All entities: `onDebounced(key, cb, delay)` / `offDebounced()` (5.17.3). `Label`: `fontFamily: "inherit"` (5.17.3).
+- Stock indicators enforce min/max limits on numeric settings (5.20.0); `IIndicatorEditableSetting` gained `scale`, `maxValue`, `step`. Volume Profile now spreads volume across each bar's high/low range.
+
+## Verify unfamiliar API before using it
+
+If unsure whether a method, property, or setting exists, **verify it** before using it:
+
+1. **Primary:** `https://www.amcharts.com/docs/v5/reference/{classname}/` (lowercase, e.g. `LineSeries` > `lineseries`)
+2. **Fallback:** TypeScript source on GitHub — `https://raw.githubusercontent.com/amcharts/amcharts5/master/src/.internal/charts/` — settings interfaces are named `I{ClassName}Settings`
+
+Common source paths:
+- XY series: `charts/xy/series/{ClassName}.ts`
+- XY axes: `charts/xy/axes/{ClassName}.ts`
+- Pie: `charts/percent/pie/{ClassName}.ts`
+- Radar: `charts/radar/{ClassName}.ts`
+- Map: `charts/map/{ClassName}.ts`
+- Core sprites: `core/render/{ClassName}.ts`
+
+## Documentation reference
+
+Full docs: https://www.amcharts.com/docs/v5/
+Demos: https://www.amcharts.com/demos/
+Class reference: https://www.amcharts.com/docs/v5/reference/
