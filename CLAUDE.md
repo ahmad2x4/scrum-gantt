@@ -77,6 +77,16 @@ rules) and `references/gantt.md` before touching `src/chart/`.
 amCharts 5 is free to use with a small branding link that must not be hidden or
 altered.
 
+## Deployment
+
+Pushing to `main` builds and publishes to https://ahmad2x4.github.io/scrum-gantt/
+via `.github/workflows/deploy.yml`. Pages is configured with
+`build_type: workflow`, so there is no `gh-pages` branch.
+
+The build succeeds whether or not the two repository Variables are set, so a
+green run is not proof the deployed site works — an unset variable ships a
+bundle where sign-in silently does nothing.
+
 ## Credentials
 
 `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_API_KEY` are public-by-design browser
