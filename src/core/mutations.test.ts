@@ -1,0 +1,108 @@
+import { describe, it, expect } from "vitest";
+import { emptyPlan } from "./schema";
+import { checkInvariants } from "./invariants";
+import { addTeam, addStream, addItem, renameRow, setRowColor, removeRow, updateTask, moveRow } from "./mutations";
+import type { PlanDocument } from "./types";
+
+function seeded(): { doc: PlanDocument; teamId: string; streamId: string; itemId: string } {
+  let doc = addTeam("Falcon")(emptyPlan("p"));
+  const teamId = doc.rows[0].id;
+  doc = addStream(teamId, "Payments")(doc);
+  const streamId = doc.rows[1].id;
+  doc = addItem(streamId, "Tokenisation", 1000, 5)(doc);
+  const itemId = doc.rows[2].id;
+  return { doc, teamId, streamId, itemId };
+}
+
+describe("add mutations", () => {
+  it("appends a team with no parent", () => {
+    const doc = addTeam("Falcon")(emptyPlan("p"));
+    expect(doc.rows).toHaveLength(1);
+    expect(doc.rows[0]).toMatchObject({ name: "Falcon", kind: "team" });
+    expect(doc.rows[0].parentId).toBeUndefined();
+  });
+
+  it("does not mutate the input document", () => {
+    const before = emptyPlan("p");
+    addTeam("Falcon")(before);
+    expect(before.rows).toHaveLength(0);
+  });
+
+  it("inserts a stream directly after its team", () => {
+    const { doc, teamId } = seeded();
+    expect(doc.rows[1]).toMatchObject({ kind: "stream", parentId: teamId });
+  });
+
+  it("creates a task alongside an item row", () => {
+    const { doc, itemId } = seeded();
+    expect(doc.tasks).toEqual([{ id: itemId, start: 1000, duration: 5, progress: 0 }]);
+  });
+
+  it("produces a document satisfying all invariants", () => {
+    expect(checkInvariants(seeded().doc)).toEqual([]);
+  });
+
+  it("inserts a second stream after the first team's subtree, not at the end", () => {
+    const { doc: seed, teamId } = seeded();
+    let doc = addTeam("Otter")(seed);
+    doc = addStream(teamId, "Mobile")(doc);
+    const names = doc.rows.map((r) => r.name);
+    expect(names.indexOf("Mobile")).toBeLessThan(names.indexOf("Otter"));
+    expect(checkInvariants(doc)).toEqual([]);
+  });
+});
+
+describe("edit mutations", () => {
+  it("renames a row", () => {
+    const { doc, teamId } = seeded();
+    expect(renameRow(teamId, "Renamed")(doc).rows[0].name).toBe("Renamed");
+  });
+
+  it("sets a colour as a hex string", () => {
+    const { doc, teamId } = seeded();
+    expect(setRowColor(teamId, "#ff0000")(doc).rows[0].color).toBe("#ff0000");
+  });
+
+  it("patches a task without touching its id", () => {
+    const { doc, itemId } = seeded();
+    const next = updateTask(itemId, { progress: 60, duration: 9 })(doc);
+    expect(next.tasks[0]).toMatchObject({ id: itemId, progress: 60, duration: 9, start: 1000 });
+  });
+});
+
+describe("removeRow", () => {
+  it("cascades to descendants and their tasks", () => {
+    const { doc, teamId } = seeded();
+    const next = removeRow(teamId)(doc);
+    expect(next.rows).toHaveLength(0);
+    expect(next.tasks).toHaveLength(0);
+  });
+
+  it("removes only the targeted subtree", () => {
+    const { doc: seed, streamId } = seeded();
+    const doc = addItem(streamId, "Second", 2000, 3)(seed);
+    const next = removeRow(doc.rows[2].id)(doc);
+    expect(next.rows.map((r) => r.name)).toEqual(["Falcon", "Payments", "Second"]);
+  });
+
+  it("strips links pointing at removed tasks", () => {
+    const { doc: seed, streamId, itemId } = seeded();
+    let doc = addItem(streamId, "Second", 2000, 3)(seed);
+    const secondId = doc.rows[3].id;
+    doc = updateTask(secondId, { linkTo: [itemId] })(doc);
+    const next = removeRow(itemId)(doc);
+    expect(next.tasks.find((t) => t.id === secondId)?.linkTo).toEqual([]);
+    expect(checkInvariants(next)).toEqual([]);
+  });
+});
+
+describe("moveRow", () => {
+  it("reorders siblings and keeps invariants", () => {
+    const { doc: seed, teamId } = seeded();
+    const doc = addStream(teamId, "Mobile")(seed);
+    const mobileId = doc.rows[3].id;
+    const next = moveRow(mobileId, 1)(doc);
+    expect(next.rows[1].name).toBe("Mobile");
+    expect(checkInvariants(next)).toEqual([]);
+  });
+});
