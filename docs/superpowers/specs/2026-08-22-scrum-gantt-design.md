@@ -377,6 +377,51 @@ is kept thin for exactly this reason, with all logic in `projection`/`ingest`.
 One Playwright smoke test covers it: load a fixture plan, assert the canvas
 mounts and the console is clean.
 
+## Credential handling (public repository)
+
+The source repository is public. This is safe because the design contains no
+secret material.
+
+**No client secret exists.** The GIS browser token client was chosen over a
+server-side OAuth code flow specifically so that no `client_secret.json` is ever
+needed. There is nothing to leak.
+
+**The OAuth client ID is public by design** and ships in the JS bundle, as it
+does for every browser-based OAuth app. Committing it is expected.
+
+**Security rests on the Authorized JavaScript origins allowlist, not on
+secrecy.** Google issues a token for the client ID only when the request comes
+from a registered origin, so the client ID is useless to a third-party site.
+Registered origins:
+
+```
+https://ahmad2x4.github.io      production (GitHub Pages)
+http://localhost:5173           local development — remove before publishing
+```
+
+**The Picker API key must be restricted.** It is not secret, but an
+unrestricted key can be scraped and used against the project's quota. In Cloud
+Console set:
+
+- Application restriction → HTTP referrers → `https://ahmad2x4.github.io/*`
+- API restriction → Google Picker API only
+
+**Use GitHub repository Variables, not Secrets.** Vite inlines `VITE_*` values
+at build time, so they appear in the published bundle regardless of how they are
+injected. Storing them as Secrets implies a protection that does not exist.
+Variables keep them out of source and make rotation easy, which is the actual
+benefit being sought.
+
+**OAuth consent screen must be published before rollout.** While the app is in
+Testing status it is limited to 100 listed test users, and authorizations expire
+7 days after consent, forcing weekly re-consent. Publishing moves it to
+production. Because `drive.file` is non-sensitive, only basic verification is
+required — not a restricted-scope security review.
+
+**Prohibited in this codebase:** service account keys, OAuth client secrets, and
+stored refresh tokens. If a feature appears to require one, that indicates the
+feature needs a backend and must be redesigned rather than accommodated.
+
 ## Deployment
 
 - Vite + TypeScript + React.
