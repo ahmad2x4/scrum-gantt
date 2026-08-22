@@ -1,14 +1,18 @@
 import { useMemo } from "react";
+import "./ui/app.css";
 import { createStore } from "./core/store";
 import { emptyPlan } from "./core/schema";
 import { addTeam, addStream, addItem, setRowColor, updateTask } from "./core/mutations";
 import { GanttView } from "./chart/GanttView";
+import { Toolbar } from "./ui/Toolbar";
+import { StructurePanel } from "./ui/StructurePanel";
 
-const DAY = 86400000;
+const DAY = 86_400_000;
 
+/** Seed data until Drive load lands; replaced in a later task. */
 function demoStore() {
   const today = Date.now();
-  let doc = addTeam("Team Falcon")(emptyPlan("Demo"));
+  let doc = addTeam("Team Falcon")(emptyPlan("Demo plan"));
   const falcon = doc.rows[0].id;
   doc = setRowColor(falcon, "#297373")(doc);
 
@@ -32,11 +36,27 @@ function demoStore() {
   return createStore(doc);
 }
 
+const notYet = () => window.alert("Google Drive is wired up in a later task.");
+
 export default function App() {
   const store = useMemo(() => demoStore(), []);
+
   return (
-    <div style={{ height: "100vh" }}>
-      <GanttView store={store} />
+    <div className="app">
+      <Toolbar
+        store={store}
+        saving={false}
+        onOpen={notYet}
+        onSave={notYet}
+        onSaveAs={notYet}
+        onHistory={notYet}
+      />
+      <div className="workspace">
+        <StructurePanel store={store} />
+        <main className="chart-area">
+          <GanttView store={store} />
+        </main>
+      </div>
     </div>
   );
 }

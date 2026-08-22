@@ -7,6 +7,9 @@ import type { Store } from "../core/store";
 import { project, type GanttTask } from "./projection";
 import { ingestTasks, isEcho } from "./ingest";
 
+/** Window after mount in which chart writebacks count as reconciliation. */
+const SETTLE_MS = 2000;
+
 /** Gantt wants number | Percent; the document stores a string like "30%". */
 function toWidth(value: string): number | am5.Percent {
   return value.trim().endsWith("%") ? am5.percent(parseFloat(value)) : parseFloat(value);
@@ -59,6 +62,14 @@ export function GanttView({ store }: { store: Store }) {
     // Echo guard #1: ignore valueschanged fired by our own writes.
     let applying = false;
 
+    // The chart normalises data it is given - a task starting on a weekend is
+    // snapped to working days - and reports it back. That is reconciliation,
+    // not a user edit, so it must not mark a freshly opened plan as unsaved.
+    // Bounded by time because the chart reports nothing when no normalising is
+    // needed, and a permanent flag would then swallow the first real edit.
+    const mountedAt = Date.now();
+    const isSettling = () => Date.now() - mountedAt < SETTLE_MS;
+
     const apply = () => {
       const { categories, tasks } = project(store.get());
       applying = true;
@@ -82,7 +93,7 @@ export function GanttView({ store }: { store: Store }) {
         if (applying) return;
         const snapshots = chart.series.data.values as unknown as GanttTask[];
         if (isEcho(store.get(), snapshots)) return;
-        store.apply(ingestTasks(snapshots));
+        store.apply(ingestTasks(snapshots), { dirty: !isSettling() });
       },
       300,
     );

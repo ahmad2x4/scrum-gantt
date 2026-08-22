@@ -64,3 +64,27 @@ describe("createStore", () => {
     expect(store.get()).toBe(doc);
   });
 });
+
+describe("non-dirtying apply", () => {
+  it("updates the document without marking it dirty", () => {
+    const store = createStore(emptyPlan("p"));
+    store.apply(addTeam("Falcon"), { dirty: false });
+    expect(store.get().rows).toHaveLength(1);
+    expect(store.isDirty()).toBe(false);
+  });
+
+  it("still notifies subscribers", () => {
+    const store = createStore(emptyPlan("p"));
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.apply(addTeam("Falcon"), { dirty: false });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not clear a dirty flag set earlier", () => {
+    const store = createStore(emptyPlan("p"));
+    store.apply(addTeam("Falcon"));
+    store.apply(addTeam("Otter"), { dirty: false });
+    expect(store.isDirty()).toBe(true);
+  });
+});

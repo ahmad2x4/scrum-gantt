@@ -1,9 +1,14 @@
 import type { PlanDocument } from "./types";
 import type { Mutation } from "./mutations";
 
+export interface ApplyOptions {
+  /** Whether the change counts as an unsaved user edit. Defaults to true. */
+  dirty?: boolean;
+}
+
 export interface Store {
   get(): PlanDocument;
-  apply(m: Mutation): void;
+  apply(m: Mutation, options?: ApplyOptions): void;
   replace(doc: PlanDocument): void;
   subscribe(fn: () => void): () => void;
   isDirty(): boolean;
@@ -27,11 +32,13 @@ export function createStore(initial: PlanDocument): Store {
   return {
     get: () => doc,
 
-    apply(m) {
+    apply(m, options) {
       const next = m(doc);
       if (equal(doc, next)) return;
       doc = next;
-      dirty = true;
+      // Reconciliation (the chart normalising values we just gave it) changes
+      // the document without being a user edit, so it must not mark it dirty.
+      if (options?.dirty !== false) dirty = true;
       notify();
     },
 
