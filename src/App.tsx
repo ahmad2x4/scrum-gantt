@@ -8,7 +8,7 @@ import {
 import "./ui/app.css";
 import { createStore } from "./core/store";
 import { emptyPlan } from "./core/schema";
-import { GanttView } from "./chart/GanttView";
+import { GanttView, type GanttHandle } from "./chart/GanttView";
 import { Toolbar } from "./ui/Toolbar";
 import { StructurePanel } from "./ui/StructurePanel";
 import { OpenDialog } from "./ui/OpenDialog";
@@ -31,6 +31,9 @@ import {
 } from "./storage/driveClient";
 import { loadPickerApi, openPicker } from "./storage/picker";
 import { loadDraft } from "./storage/localDraft";
+
+/** One button press worth of zoom. */
+const ZOOM_STEP = 1.6;
 
 export default function App() {
   const store = useMemo(
@@ -62,6 +65,7 @@ export default function App() {
   useDraftAutosave(store, status.fileId);
 
   const [panelCollapsed, togglePanel] = usePanelCollapsed();
+  const gantt = useRef<GanttHandle | null>(null);
   const [dialog, setDialog] = useState<"none" | "open" | "history" | "saveAs">(
     "none",
   );
@@ -168,6 +172,9 @@ export default function App() {
         onSave={() => void ensureAuthThen(() => controller.save())}
         onSaveAs={() => setDialog("saveAs")}
         onHistory={() => void historyDialog()}
+        onFit={() => gantt.current?.fit()}
+        onZoomIn={() => gantt.current?.zoomBy(1 / ZOOM_STEP)}
+        onZoomOut={() => gantt.current?.zoomBy(ZOOM_STEP)}
         onTogglePanel={togglePanel}
         panelCollapsed={panelCollapsed}
       />
@@ -199,7 +206,7 @@ export default function App() {
       <div className="workspace">
         {!panelCollapsed && <StructurePanel store={store} />}
         <main className="chart-area">
-          <GanttView store={store} />
+          <GanttView store={store} handleRef={gantt} />
         </main>
       </div>
 

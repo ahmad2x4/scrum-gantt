@@ -321,3 +321,15 @@
 .dialog button:disabled:hover {
   border-color: color-mix(in srgb, currentColor 25%, transparent);
 }
+
+.zoom-group {
+  display: flex;
+  gap: 4px;
+  margin-right: 4px;
+  padding-right: 10px;
+  border-right: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.zoom-group button {
+  min-width: 30px;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import * as am5 from "@amcharts/amcharts5";
 import * as am5gantt from "@amcharts/amcharts5/gantt";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
@@ -6,6 +6,7 @@ import am5themes_Dark from "@amcharts/amcharts5/themes/Dark";
 import type { Store } from "../core/store";
 import { project, planExtent, type GanttTask } from "./projection";
 import { ingestTasks, isEcho } from "./ingest";
+import { zoomRange } from "./zoom";
 
 /** Window after mount in which chart writebacks count as reconciliation. */
 const SETTLE_MS = 2000;
@@ -13,12 +14,28 @@ const SETTLE_MS = 2000;
 /** Breathing room either side of the plan when fitting, as a fraction. */
 const FIT_PAD = 0.04;
 
-/** Gantt wants number | Percent; the document stores a string like "30%". */
-function toWidth(value: string): number | am5.Percent {
-  return value.trim().endsWith("%") ? am5.percent(parseFloat(value)) : parseFloat(value);
+/** Imperative zoom controls, so the toolbar can offer labelled buttons. */
+export interface GanttHandle {
+  /** Frame the whole plan, padding included. */
+  fit(): void;
+  /** Zoom about a point in the current view; factor > 1 zooms out. */
+  zoomBy(factor: number, anchor?: number): void;
 }
 
-export function GanttView({ store }: { store: Store }) {
+/** Gantt wants number | Percent; the document stores a string like "30%". */
+function toWidth(value: string): number | am5.Percent {
+  return value.trim().endsWith("%")
+    ? am5.percent(parseFloat(value))
+    : parseFloat(value);
+}
+
+export function GanttView({
+  store,
+  handleRef,
+}: {
+  store: Store;
+  handleRef?: RefObject<GanttHandle | null>;
+}) {
   const divRef = useRef<HTMLDivElement>(null);
 
   // Empty deps: the chart is created once and fed through the store
@@ -31,7 +48,9 @@ export function GanttView({ store }: { store: Store }) {
     // amCharts renders to canvas, so CSS cannot restyle chart internals: a dark
     // page without the Dark theme leaves labels and grid nearly invisible.
     // Follow the system preference, which is what the page CSS does too.
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    ).matches;
     root.setThemes(
       prefersDark
         ? [am5themes_Animated.new(root), am5themes_Dark.new(root)]
@@ -74,7 +93,9 @@ export function GanttView({ store }: { store: Store }) {
     const isSettling = () => Date.now() - mountedAt < SETTLE_MS;
 
     const apply = () => {
-      const { categories, tasks } = project(store.get());
+      const doc = store.get();
+      const { categories, tasks } = project(doc);
+
       applying = true;
       try {
         // Set data last, and category data before series data.
@@ -111,11 +132,48 @@ export function GanttView({ store }: { store: Store }) {
       chart.xAxis.zoomToValues(extent.start - pad, extent.end + pad);
     };
 
+    /**
+     * Zooms the time axis about `anchor`, a fraction across the visible
+     * window. Working in the axis's own 0..1 relative range keeps this correct
+     * whatever dates the plan covers.
+     */
+    const zoomBy = (factor: number, anchor = 0.5) => {
+      const axis = chart.xAxis;
+      const next = zoomRange(
+        { start: axis.get("start", 0), end: axis.get("end", 1) },
+        factor,
+        anchor,
+      );
+      axis.zoom(next.start, next.end);
+    };
+
+    /**
+     * macOS sends a trackpad pinch as a wheel event with ctrlKey set, and
+     * amCharts has no handling of its own for it. Plain scrolling is left
+     * alone so two-finger panning and row scrolling still work.
+     */
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      const bounds = chart.xyChart.plotContainer.globalBounds();
+      const width = bounds.right - bounds.left;
+      const anchor = width > 0 ? (e.clientX - bounds.left) / width : 0.5;
+      zoomBy(Math.exp(e.deltaY * 0.01), Math.min(1, Math.max(0, anchor)));
+    };
+    // Not passive: the handler calls preventDefault to stop the browser
+    // treating a pinch as a page zoom.
+    const div = divRef.current;
+    div.addEventListener("wheel", onWheel, { passive: false });
+
+    // Two-finger horizontal scrolling pans time, the conventional gesture.
+    chart.xyChart.set("wheelX", "panX");
+
+    if (handleRef) handleRef.current = { fit, zoomBy };
+
     apply();
 
-    // Open showing the whole plan rather than an arbitrary window. On-demand
-    // refitting is the chart's own "Fit to view" control, so no handle is
-    // exposed for it here.
+    // Open showing the whole plan rather than an arbitrary window. The
+    // toolbar's Fit button calls the same thing on demand.
     fit();
 
     // Today marker: the Gantt has a built-in date marking API, so use that
@@ -127,9 +185,11 @@ export function GanttView({ store }: { store: Store }) {
 
     return () => {
       unsubscribe();
+      div.removeEventListener("wheel", onWheel);
+      if (handleRef) handleRef.current = null;
       root.dispose(); // never chart.dispose()
     };
-  }, [store]);
+  }, [store, handleRef]);
 
   return <div ref={divRef} style={{ width: "100%", height: "100%" }} />;
 }

@@ -110,3 +110,29 @@ test("Save as… refuses an empty name", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page.locator(".dialog-backdrop")).toBeVisible();
 });
+
+test("the zoom controls drive the chart without errors", async ({ page }) => {
+  await blockGoogle(page);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /add team/i }).click();
+  await page.getByRole("button", { name: /add stream to new team/i }).click();
+  await page.getByRole("button", { name: /add item to new stream/i }).click();
+
+  // The chart is a canvas, so there is no DOM text to compare a range against.
+  // The arithmetic is covered by src/chart/zoom.test.ts; what this can prove is
+  // that the controls reach amCharts and the chart survives being driven to
+  // both extremes.
+  for (let i = 0; i < 8; i++) {
+    await page.getByRole("button", { name: /zoom in/i }).click();
+  }
+  for (let i = 0; i < 12; i++) {
+    await page.getByRole("button", { name: /zoom out/i }).click();
+  }
+  await page.getByRole("button", { name: /fit/i }).click();
+
+  await expect(page.locator(".chart-area canvas").first()).toBeVisible();
+  expect(errors).toEqual([]);
+});
