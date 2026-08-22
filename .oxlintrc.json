@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc", "import"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "no-restricted-imports": ["error", {
+      "patterns": [
+        { "group": ["@amcharts/*"], "message": "Only src/chart/ may import amCharts." }
+      ]
+    }]
+  },
+  "overrides": [
+    {
+      "files": ["src/chart/**"],
+      "rules": { "no-restricted-imports": "off" }
+    },
+    {
+      "files": ["src/ui/**", "src/storage/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["@amcharts/*"], "message": "Only src/chart/ may import amCharts." },
+            { "group": ["**/chart/**"], "message": "ui/ and storage/ must not import chart/." }
+          ]
+        }]
+      }
+    },
+    {
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            { "group": ["@amcharts/*"], "message": "core/ must stay dependency-free." },
+            { "group": ["**/chart/**", "**/ui/**", "**/storage/**"], "message": "core/ must not import other layers." }
+          ]
+        }]
+      }
+    }
+  ]
+}

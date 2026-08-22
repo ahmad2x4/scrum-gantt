@@ -4,3 +4,9 @@ dist/
 .env.local
 *.log
 .DS_Store
+*.local
+.vite/
+coverage/
+.idea/
+.vscode/*
+!.vscode/extensions.json
