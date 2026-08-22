@@ -441,6 +441,37 @@ feature needs a backend and must be redesigned rather than accommodated.
 - `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_API_KEY` supplied as repository
   variables. Neither is secret; both are public-by-design browser credentials.
 
+## Backlog
+
+### Sprint cadence (deferred from v1)
+
+Requested 2026-08-22: express the timeline in sprints of two weeks, anchored to
+a Wednesday, rather than raw calendar dates.
+
+**Constraint:** amCharts `durationUnit` accepts only
+`year | month | week | day | hour | minute | second`. There is no sprint unit,
+so task durations remain stored and displayed in days. Sprints are a
+presentation layer over a day-based model, not a change of unit.
+
+Three separable pieces, in increasing cost:
+
+1. **Sprint boundaries** — gridlines every 14 days from the anchor date, via the
+   Gantt's `gridIntervals` setting or repeated `markDate` calls.
+2. **Sprint labels** (S1, S2, S3…) — the x-axis is a date axis that formats
+   dates, so numbering requires a label adapter or a separate header strip.
+3. **Sprint arithmetic in our own UI** — "spans 1.5 sprints" in the structure
+   panel, which is ours to render and unconstrained by amCharts.
+
+**Schema impact: none blocking.** The configuration is an optional additive
+field on `Calendar`:
+
+```ts
+sprints?: { anchor: string; lengthDays: number };   // ISO date, e.g. 14
+```
+
+A file saved without it loads unchanged into a later version that supports it,
+so no migration is needed and deferring costs nothing.
+
 ## Open questions
 
 None. All decisions above are settled.
