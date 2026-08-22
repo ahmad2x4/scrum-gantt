@@ -256,3 +256,36 @@
   opacity: 0.65;
   font-variant-numeric: tabular-nums;
 }
+
+/* Banners */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  font-size: 0.85rem;
+}
+
+.banner button {
+  padding: 3px 10px;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.banner button:hover {
+  border-color: currentColor;
+}
+.banner-conflict {
+  background: color-mix(in srgb, #e08b00 22%, transparent);
+}
+.banner-error {
+  background: color-mix(in srgb, #e9724c 22%, transparent);
+}
+.banner span {
+  margin-right: auto;
+}

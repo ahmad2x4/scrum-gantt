@@ -44,4 +44,9 @@ describe("Dialog", () => {
       document.activeElement as HTMLElement,
     );
   });
+
+  it("does not put focus on a control, so a stray Enter chooses nothing", () => {
+    renderDialog();
+    expect(document.activeElement).toBe(screen.getByRole("dialog"));
+  });
 });

@@ -24,12 +24,10 @@ export function Dialog({ title, onClose, children, footer }: DialogProps) {
   }, [onClose]);
 
   useEffect(() => {
-    // Prefer the first control; fall back to the panel so focus never stays
-    // on whatever was behind the backdrop.
-    const first = panel.current?.querySelector<HTMLElement>(
-      "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
-    );
-    (first ?? panel.current)?.focus();
+    // The panel itself, never the first control: focusing a button means a
+    // stray Enter — from the keystroke that dismissed a sign-in popup, say —
+    // fires an action the user never chose. Tab still reaches the controls.
+    panel.current?.focus();
   }, []);
 
   return (
