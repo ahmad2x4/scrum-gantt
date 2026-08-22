@@ -392,19 +392,27 @@ does for every browser-based OAuth app. Committing it is expected.
 **Security rests on the Authorized JavaScript origins allowlist, not on
 secrecy.** Google issues a token for the client ID only when the request comes
 from a registered origin, so the client ID is useless to a third-party site.
-Registered origins:
+
+Origins are scheme + host + optional port only — no path, no wildcard, no
+trailing slash. The bare host is correct even though the app is served from the
+`/scrum-gantt/` subpath, because the browser transmits the origin, not the path.
 
 ```
 https://ahmad2x4.github.io      production (GitHub Pages)
 http://localhost:5173           local development — remove before publishing
 ```
 
-**The Picker API key must be restricted.** It is not secret, but an
-unrestricted key can be scraped and used against the project's quota. In Cloud
-Console set:
+**Authorized redirect URIs are left empty.** The GIS token client uses a popup
+and never redirects.
 
-- Application restriction → HTTP referrers → `https://ahmad2x4.github.io/*`
-- API restriction → Google Picker API only
+**The Picker API key must be restricted.** It is a separate credential from the
+OAuth client, configured under APIs & Services → Credentials → API Keys. It is
+not secret, but an unrestricted key can be scraped and used against the
+project's quota. Unlike JavaScript origins, referrer patterns accept paths and
+wildcards, so scope the key to this app rather than the whole domain:
+
+- Application restrictions → Websites → `https://ahmad2x4.github.io/scrum-gantt/*`
+- API restrictions → Restrict key → Google Picker API only
 
 **Use GitHub repository Variables, not Secrets.** Vite inlines `VITE_*` values
 at build time, so they appear in the published bundle regardless of how they are
