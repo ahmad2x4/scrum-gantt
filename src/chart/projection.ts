@@ -101,3 +101,18 @@ export function project(doc: PlanDocument): { categories: GanttCategory[]; tasks
 
   return { categories, tasks: [...rollUpGroups(doc), ...tasks] };
 }
+
+/**
+ * The window a "fit to plan" zoom should show. Derived from stored data rather
+ * than the chart's internal selection state, so it is pure and testable.
+ */
+export function planExtent(doc: PlanDocument): { start: number; end: number } | null {
+  if (doc.tasks.length === 0) return null;
+
+  const start = Math.min(...doc.tasks.map((t) => t.start));
+  const end = Math.max(...doc.tasks.map((t) => endOfWork(t.start, t.duration, doc.calendar)));
+
+  // A plan of milestones alone has zero width, which would zoom to a point.
+  const DAY = 86_400_000;
+  return end > start ? { start, end } : { start, end: start + DAY };
+}

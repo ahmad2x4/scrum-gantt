@@ -4,18 +4,31 @@ import * as am5gantt from "@amcharts/amcharts5/gantt";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import am5themes_Dark from "@amcharts/amcharts5/themes/Dark";
 import type { Store } from "../core/store";
-import { project, type GanttTask } from "./projection";
+import { project, planExtent, type GanttTask } from "./projection";
 import { ingestTasks, isEcho } from "./ingest";
 
 /** Window after mount in which chart writebacks count as reconciliation. */
 const SETTLE_MS = 2000;
+
+/** Breathing room either side of the plan when fitting, as a fraction. */
+const FIT_PAD = 0.04;
+
+export interface GanttHandle {
+  fit(): void;
+}
 
 /** Gantt wants number | Percent; the document stores a string like "30%". */
 function toWidth(value: string): number | am5.Percent {
   return value.trim().endsWith("%") ? am5.percent(parseFloat(value)) : parseFloat(value);
 }
 
-export function GanttView({ store }: { store: Store }) {
+export function GanttView({
+  store,
+  handleRef,
+}: {
+  store: Store;
+  handleRef?: { current: GanttHandle | null };
+}) {
   const divRef = useRef<HTMLDivElement>(null);
 
   // Empty deps: the chart is created once and fed through the store
@@ -98,7 +111,21 @@ export function GanttView({ store }: { store: Store }) {
       300,
     );
 
+    // Fit the whole plan into view. Computed from stored data rather than the
+    // chart's internal selection state, so it is correct immediately after
+    // setAll without waiting for the chart to settle its own selection.
+    const fit = () => {
+      const extent = planExtent(store.get());
+      if (!extent) return;
+      const pad = (extent.end - extent.start) * FIT_PAD;
+      chart.xAxis.zoomToValues(extent.start - pad, extent.end + pad);
+    };
+
     apply();
+
+    // Open showing the whole plan rather than an arbitrary window.
+    fit();
+    if (handleRef) handleRef.current = { fit };
 
     // Today marker: the Gantt has a built-in date marking API, so use that
     // rather than hand-rolling an axis range.
@@ -109,9 +136,10 @@ export function GanttView({ store }: { store: Store }) {
 
     return () => {
       unsubscribe();
+      if (handleRef) handleRef.current = null;
       root.dispose(); // never chart.dispose()
     };
-  }, [store]);
+  }, [store, handleRef]);
 
   return <div ref={divRef} style={{ width: "100%", height: "100%" }} />;
 }

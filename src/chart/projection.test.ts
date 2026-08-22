@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { project, hexToNumber } from "./projection";
+import { project, hexToNumber, planExtent } from "./projection";
 import { emptyPlan } from "../core/schema";
 import type { PlanDocument } from "../core/types";
 
@@ -145,5 +145,32 @@ describe("group roll-up", () => {
   it("leaves item tasks untouched", () => {
     const { tasks } = project(tree());
     expect(tasks.find((t) => t.id === "a")).toEqual({ id: "a", start: MON, duration: 10, progress: 1 });
+  });
+});
+
+describe("planExtent", () => {
+  const MON2 = new Date(2026, 7, 17).getTime();
+  const DAY2 = 86_400_000;
+
+  it("returns null for a plan with no tasks", () => {
+    expect(planExtent(doc({}))).toBeNull();
+  });
+
+  it("spans the earliest start to the latest working-day end", () => {
+    const extent = planExtent(
+      doc({
+        tasks: [
+          { id: "a", start: MON2, duration: 5 },
+          { id: "b", start: MON2 + 7 * DAY2, duration: 5 },
+        ],
+      }),
+    )!;
+    expect(extent.start).toBe(MON2);
+    expect(extent.end).toBe(MON2 + 12 * DAY2);
+  });
+
+  it("gives a milestone a non-zero window so it is not zoomed to a point", () => {
+    const extent = planExtent(doc({ tasks: [{ id: "m", start: MON2, duration: 0 }] }))!;
+    expect(extent.end).toBeGreaterThan(extent.start);
   });
 });
