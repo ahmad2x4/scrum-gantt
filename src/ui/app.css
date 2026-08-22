@@ -13,9 +13,15 @@
   flex: none;
 }
 
-.plan-name { font-weight: 600; }
-.dirty-dot { color: #e08b00; }
-.spacer { flex: 1; }
+.plan-name {
+  font-weight: 600;
+}
+.dirty-dot {
+  color: #e08b00;
+}
+.spacer {
+  flex: 1;
+}
 
 .toolbar button,
 .structure-panel button {
@@ -29,8 +35,13 @@
 }
 
 .toolbar button:hover:not(:disabled),
-.structure-panel button:hover { border-color: currentColor; }
-.toolbar button:disabled { opacity: 0.5; cursor: default; }
+.structure-panel button:hover {
+  border-color: currentColor;
+}
+.toolbar button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 
 .workspace {
   display: flex;
@@ -54,7 +65,10 @@
   margin: 4px 0 8px 8px;
 }
 
-.chart-area { flex: 1; min-width: 0; }
+.chart-area {
+  flex: 1;
+  min-width: 0;
+}
 
 .structure-row {
   display: flex;
@@ -64,7 +78,9 @@
   border-radius: 6px;
 }
 
-.structure-row:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+.structure-row:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
 
 .row-name {
   overflow: hidden;
@@ -82,7 +98,9 @@
 .structure-row:hover button,
 .structure-row:hover input[type="color"],
 .structure-row:focus-within button,
-.structure-row:focus-within input[type="color"] { opacity: 1; }
+.structure-row:focus-within input[type="color"] {
+  opacity: 1;
+}
 
 .structure-row input[type="color"] {
   width: 22px;
@@ -112,8 +130,13 @@
   border-style: dashed !important;
 }
 
-.add-child:hover { opacity: 1; }
-.add-team { width: 100%; margin-top: 8px; }
+.add-child:hover {
+  opacity: 1;
+}
+.add-team {
+  width: 100%;
+  margin-top: 8px;
+}
 
 .panel-toggle {
   font-size: 13px;
@@ -122,4 +145,114 @@
   opacity: 0.7;
 }
 
-.panel-toggle:hover { opacity: 1; }
+.panel-toggle:hover {
+  opacity: 1;
+}
+
+/* Dialogs */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, #000 45%, transparent);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(480px, 100%);
+  max-height: min(560px, 100%);
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 10px;
+  background: Canvas;
+  color: CanvasText;
+  box-shadow: 0 12px 32px color-mix(in srgb, #000 35%, transparent);
+}
+
+.dialog h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.dialog .hint {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+
+.dialog p {
+  margin: 0;
+}
+
+.dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dialog button {
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dialog button:hover {
+  border-color: currentColor;
+}
+
+.plan-list,
+.revision-list {
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-list li button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border-color: transparent;
+  text-align: left;
+}
+
+.plan-list li button:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.plan-list-name {
+  font-weight: 500;
+}
+
+.revision-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 2px;
+}
+
+.revision-list li + li {
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+.revision-list li button {
+  margin-left: auto;
+}
+
+.plan-list time,
+.revision-list time {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+}
