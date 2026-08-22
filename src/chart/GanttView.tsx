@@ -65,17 +65,12 @@ export function GanttView({ store }: { store: Store }) {
       300,
     );
 
-    // Today marker. Settings go on the data item, not the returned range.
-    const todayItem = chart.xAxis.makeDataItem({ value: Date.now() });
-    chart.xAxis.createAxisRange(todayItem);
-    todayItem.get("grid")?.setAll({
-      stroke: am5.color(0xd93025),
-      strokeWidth: 2,
-      strokeOpacity: 1,
-      visible: true,
-    });
-
     apply();
+
+    // Today marker: the Gantt has a built-in date marking API, so use that
+    // rather than hand-rolling an axis range.
+    chart.markDate(Date.now());
+
     const unsubscribe = store.subscribe(apply);
     chart.appear(1000, 100);
 

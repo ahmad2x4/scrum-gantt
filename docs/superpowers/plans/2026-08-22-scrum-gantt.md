@@ -26,6 +26,10 @@ Every task's requirements implicitly include this section.
 - **`CURRENT_SCHEMA_VERSION = 1`.**
 - **Prohibited:** service account keys, OAuth client secrets, stored refresh tokens.
 - **amCharts:** use the `.new()` factory (never `new ClassName()`), pass `root` as the first argument, set data last, and call `root.dispose()` (never `chart.dispose()`) on teardown.
+- **Progress is 0-100 in `PlanDocument` but 0-1 in the chart.** The bundled
+  `references/gantt.md` says `progressField` is 0-100; the amCharts source
+  disagrees (`GanttSeries.js` hatches a bar when `progress < 1`). Convert with
+  `toChartProgress` / `fromChartProgress` in `projection.ts` / `ingest.ts`.
 - **No constructor parameter properties** (`constructor(public x: T)`). The
   TypeScript 6 template enables `erasableSyntaxOnly`, which rejects them.
   Declare the field and assign it in the body. Vitest transpiles without
@@ -1548,23 +1552,12 @@ export function GanttView({ store }: { store: Store }) {
       300,
     );
 
-    // Today marker. Settings go on the data item, not on the returned range.
-    const todayItem = chart.xAxis.makeDataItem({ value: Date.now() });
-    chart.xAxis.createAxisRange(todayItem);
-    todayItem.get("grid")!.setAll({
-      stroke: am5.color(0xd93025),
-      strokeWidth: 2,
-      strokeOpacity: 1,
-      visible: true,
-    });
-    todayItem.get("label")!.setAll({
-      text: "Today",
-      fill: am5.color(0xd93025),
-      centerX: am5.p50,
-      inside: true,
-    });
-
     apply();
+
+    // Today marker: the Gantt exposes markDate(date) / unmarkDate(date).
+    // Use it rather than hand-rolling an axis range - a hand-rolled range
+    // silently fails to draw.
+    chart.markDate(Date.now());
     const unsubscribe = store.subscribe(apply);
     chart.appear(1000, 100);
 

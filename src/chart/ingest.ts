@@ -1,11 +1,11 @@
 import type { PlanDocument, Task } from "../core/types";
 import type { Mutation } from "../core/mutations";
 import { checkInvariants } from "../core/invariants";
-import type { GanttTask } from "./projection";
+import { fromChartProgress, type GanttTask } from "./projection";
 
 function merge(existing: Task, snapshot: GanttTask): Task {
   const next: Task = { ...existing, start: snapshot.start, duration: snapshot.duration };
-  if (snapshot.progress !== undefined) next.progress = snapshot.progress;
+  if (snapshot.progress !== undefined) next.progress = fromChartProgress(snapshot.progress);
   if (snapshot.linkTo !== undefined) next.linkTo = snapshot.linkTo;
   return next;
 }
@@ -14,7 +14,7 @@ function same(a: Task, b: GanttTask): boolean {
   return (
     a.start === b.start &&
     a.duration === b.duration &&
-    (a.progress ?? 0) === (b.progress ?? 0) &&
+    (a.progress ?? 0) === fromChartProgress(b.progress ?? 0) &&
     JSON.stringify(a.linkTo ?? []) === JSON.stringify(b.linkTo ?? [])
   );
 }

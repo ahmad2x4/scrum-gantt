@@ -44,7 +44,8 @@ describe("project", () => {
 
   it("emits tasks with epoch-ms starts untouched", () => {
     const { tasks } = project(doc({ tasks: [{ id: "a", start: 1700000000000, duration: 5, progress: 40 }] }));
-    expect(tasks).toEqual([{ id: "a", start: 1700000000000, duration: 5, progress: 40 }]);
+    // start and duration pass through; progress is rescaled to the chart's 0-1.
+    expect(tasks).toEqual([{ id: "a", start: 1700000000000, duration: 5, progress: 0.4 }]);
   });
 
   it("preserves zero duration so milestones render", () => {
@@ -60,5 +61,22 @@ describe("project", () => {
   it("omits undefined optional fields rather than emitting nulls", () => {
     const { categories } = project(doc({ rows: [{ id: "t1", name: "F", kind: "team" }] }));
     expect(Object.keys(categories[0])).toEqual(["id", "name"]);
+  });
+});
+
+describe("progress scale", () => {
+  it("converts document percentage to the chart's 0-1 fraction", () => {
+    const { tasks } = project(doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 70 }] }));
+    expect(tasks[0].progress).toBe(0.7);
+  });
+
+  it("maps 100 percent to 1, which is what stops the bar being hatched", () => {
+    const { tasks } = project(doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 100 }] }));
+    expect(tasks[0].progress).toBe(1);
+  });
+
+  it("maps zero to zero", () => {
+    const { tasks } = project(doc({ tasks: [{ id: "a", start: 1, duration: 2, progress: 0 }] }));
+    expect(tasks[0].progress).toBe(0);
   });
 });

@@ -36,7 +36,8 @@ describe("ingestTasks", () => {
   });
 
   it("applies a progress change", () => {
-    const next = ingestTasks([{ id: "a", start: 1000, duration: 5, progress: 75 }])(seeded());
+    // The chart reports a fraction; the document stores a percentage.
+    const next = ingestTasks([{ id: "a", start: 1000, duration: 5, progress: 0.75 }])(seeded());
     expect(next.tasks[0].progress).toBe(75);
   });
 
@@ -78,5 +79,22 @@ describe("ingestTasks", () => {
     const doc = seeded();
     ingestTasks([{ id: "a", start: 9999, duration: 1 }])(doc);
     expect(doc.tasks[0].start).toBe(1000);
+  });
+});
+
+describe("progress scale", () => {
+  it("converts the chart's 0-1 fraction back to a document percentage", () => {
+    const next = ingestTasks([{ id: "a", start: 1000, duration: 5, progress: 0.75 }])(seeded());
+    expect(next.tasks[0].progress).toBe(75);
+  });
+
+  it("rounds away floating point noise from dragging", () => {
+    const next = ingestTasks([{ id: "a", start: 1000, duration: 5, progress: 0.7000000001 }])(seeded());
+    expect(next.tasks[0].progress).toBe(70);
+  });
+
+  it("treats a matching fraction as an echo despite the differing scale", () => {
+    const doc = { ...seeded(), tasks: [{ id: "a", start: 1000, duration: 5, progress: 70 }] };
+    expect(isEcho(doc, [{ id: "a", start: 1000, duration: 5, progress: 0.7 }])).toBe(true);
   });
 });

@@ -12,9 +12,14 @@ export interface GanttTask {
   id: string;
   start: number;
   duration: number;
+  /** Fraction 0-1. The Gantt treats progress as a fraction, not a percentage. */
   progress?: number;
   linkTo?: string[];
 }
+
+/** PlanDocument stores 0-100; the chart wants 0-1. */
+export const toChartProgress = (percent: number): number => percent / 100;
+export const fromChartProgress = (fraction: number): number => Math.round(fraction * 100);
 
 export function hexToNumber(hex: string): number {
   const cleaned = hex.replace(/^#/, "");
@@ -35,7 +40,7 @@ export function project(doc: PlanDocument): { categories: GanttCategory[]; tasks
 
   const tasks = doc.tasks.map((task) => {
     const t: GanttTask = { id: task.id, start: task.start, duration: task.duration };
-    if (task.progress !== undefined) t.progress = task.progress;
+    if (task.progress !== undefined) t.progress = toChartProgress(task.progress);
     if (task.linkTo !== undefined) t.linkTo = task.linkTo;
     return t;
   });
