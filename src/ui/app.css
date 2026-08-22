@@ -333,3 +333,19 @@
 .zoom-group button {
   min-width: 30px;
 }
+
+.unit-group {
+  display: flex;
+  gap: 4px;
+  margin-right: 10px;
+  padding-right: 10px;
+  border-right: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.unit-group .unit {
+  min-width: 32px;
+}
+.unit-group .unit.on {
+  border-color: currentColor;
+  font-weight: 600;
+}

@@ -1,10 +1,25 @@
 import { describe, it, expect } from "vitest";
 import { emptyPlan } from "./schema";
 import { checkInvariants } from "./invariants";
-import { addTeam, addStream, addItem, renameRow, setRowColor, removeRow, updateTask, moveRow } from "./mutations";
+import {
+  addTeam,
+  addStream,
+  addItem,
+  renameRow,
+  setRowColor,
+  removeRow,
+  updateTask,
+  moveRow,
+  setDurationUnit,
+} from "./mutations";
 import type { PlanDocument } from "./types";
 
-function seeded(): { doc: PlanDocument; teamId: string; streamId: string; itemId: string } {
+function seeded(): {
+  doc: PlanDocument;
+  teamId: string;
+  streamId: string;
+  itemId: string;
+} {
   let doc = addTeam("Falcon")(emptyPlan("p"));
   const teamId = doc.rows[0].id;
   doc = addStream(teamId, "Payments")(doc);
@@ -35,7 +50,9 @@ describe("add mutations", () => {
 
   it("creates a task alongside an item row", () => {
     const { doc, itemId } = seeded();
-    expect(doc.tasks).toEqual([{ id: itemId, start: 1000, duration: 5, progress: 0 }]);
+    expect(doc.tasks).toEqual([
+      { id: itemId, start: 1000, duration: 5, progress: 0 },
+    ]);
   });
 
   it("produces a document satisfying all invariants", () => {
@@ -66,7 +83,12 @@ describe("edit mutations", () => {
   it("patches a task without touching its id", () => {
     const { doc, itemId } = seeded();
     const next = updateTask(itemId, { progress: 60, duration: 9 })(doc);
-    expect(next.tasks[0]).toMatchObject({ id: itemId, progress: 60, duration: 9, start: 1000 });
+    expect(next.tasks[0]).toMatchObject({
+      id: itemId,
+      progress: 60,
+      duration: 9,
+      start: 1000,
+    });
   });
 });
 
@@ -82,7 +104,11 @@ describe("removeRow", () => {
     const { doc: seed, streamId } = seeded();
     const doc = addItem(streamId, "Second", 2000, 3)(seed);
     const next = removeRow(doc.rows[2].id)(doc);
-    expect(next.rows.map((r) => r.name)).toEqual(["Falcon", "Payments", "Second"]);
+    expect(next.rows.map((r) => r.name)).toEqual([
+      "Falcon",
+      "Payments",
+      "Second",
+    ]);
   });
 
   it("strips links pointing at removed tasks", () => {
@@ -104,5 +130,54 @@ describe("moveRow", () => {
     const next = moveRow(mobileId, 1)(doc);
     expect(next.rows[1].name).toBe("Mobile");
     expect(checkInvariants(next)).toEqual([]);
+  });
+});
+
+describe("setDurationUnit", () => {
+  const withTask = (duration: number) => ({
+    ...emptyPlan("p"),
+    rows: [{ id: "a", name: "Item", kind: "item" as const }],
+    tasks: [{ id: "a", start: 0, duration }],
+  });
+
+  it("records the new unit", () => {
+    expect(setDurationUnit("week")(emptyPlan("p")).calendar.durationUnit).toBe(
+      "week",
+    );
+  });
+
+  it("keeps the plan's real span: fourteen days is two weeks", () => {
+    expect(setDurationUnit("week")(withTask(14)).tasks[0].duration).toBe(2);
+  });
+
+  it("converts back without losing the span", () => {
+    const weeks = setDurationUnit("week")(withTask(14));
+    expect(setDurationUnit("day")(weeks).tasks[0].duration).toBe(14);
+  });
+
+  it("keeps a fractional result rather than rounding the plan out of shape", () => {
+    expect(setDurationUnit("week")(withTask(5)).tasks[0].duration).toBe(0.71);
+  });
+
+  it("survives a round trip without eroding the duration", () => {
+    // Naive rounding turns 5 days into 0.71 weeks and back into 4.97 days.
+    const weeks = setDurationUnit("week")(withTask(5));
+    expect(setDurationUnit("day")(weeks).tasks[0].duration).toBe(5);
+  });
+
+  it("snaps to a whole number when the conversion lands on one", () => {
+    expect(
+      setDurationUnit("day")(setDurationUnit("week")(withTask(21))).tasks[0]
+        .duration,
+    ).toBe(21);
+  });
+
+  it("leaves a milestone at zero", () => {
+    expect(setDurationUnit("week")(withTask(0)).tasks[0].duration).toBe(0);
+  });
+
+  it("is a no-op when the unit is unchanged, so durations never drift", () => {
+    const doc = withTask(5);
+    expect(setDurationUnit("day")(doc)).toBe(doc);
   });
 });

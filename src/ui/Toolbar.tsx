@@ -1,5 +1,6 @@
 import type { Store } from "../core/store";
 import { usePlan, useDirty } from "./useStore";
+import { UnitSelect } from "./UnitSelect";
 
 export interface ToolbarProps {
   store: Store;
@@ -56,6 +57,7 @@ export function Toolbar({
         </span>
       )}
       <span className="spacer" />
+      <UnitSelect store={store} />
       <div className="zoom-group" role="group" aria-label="Zoom">
         <button onClick={onFit} title="Show the whole plan">
           Fit

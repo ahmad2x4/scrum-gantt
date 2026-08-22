@@ -1,4 +1,4 @@
-import type { PlanDocument, Row, Task } from "./types";
+import type { Calendar, PlanDocument, Row, Task } from "./types";
 import { teamColor } from "./palette";
 
 export type Mutation = (doc: PlanDocument) => PlanDocument;
@@ -124,5 +124,43 @@ export const moveRow =
     return {
       ...doc,
       rows: [...rest.slice(0, clamped), ...block, ...rest.slice(clamped)],
+    };
+  };
+
+/**
+ * Converts a duration, snapping to a whole number when the result lands
+ * essentially on one.
+ *
+ * Without the snap, switching units and back erodes the plan: 5 days becomes
+ * 0.71 weeks, and 0.71 weeks becomes 4.97 days. Durations are whole numbers in
+ * practice, so preferring one costs nothing and keeps the round trip exact.
+ */
+function convert(duration: number, ratio: number): number {
+  const exact = duration * ratio;
+  const whole = Math.round(exact);
+  if (Math.abs(exact - whole) < 0.05) return whole;
+  return Math.round(exact * 100) / 100;
+}
+
+/** How many days one unit of duration covers. */
+const UNIT_DAYS: Record<Calendar["durationUnit"], number> = { day: 1, week: 7 };
+
+/**
+ * Switches the unit durations are counted in, rewriting every task so the plan
+ * keeps the same real span: a 14-day task becomes 2 when you switch to weeks.
+ */
+export const setDurationUnit =
+  (durationUnit: Calendar["durationUnit"]): Mutation =>
+  (doc) => {
+    if (doc.calendar.durationUnit === durationUnit) return doc;
+    const ratio =
+      UNIT_DAYS[doc.calendar.durationUnit] / UNIT_DAYS[durationUnit];
+    return {
+      ...doc,
+      calendar: { ...doc.calendar, durationUnit },
+      tasks: doc.tasks.map((t) => ({
+        ...t,
+        duration: convert(t.duration, ratio),
+      })),
     };
   };
