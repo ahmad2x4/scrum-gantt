@@ -21,12 +21,16 @@ function same(a: Task, b: GanttTask): boolean {
 
 /** Echo guard #2: the chart is reporting exactly what we just gave it. */
 export function isEcho(doc: PlanDocument, snapshots: GanttTask[]): boolean {
-  if (snapshots.length !== doc.tasks.length) return false;
   const byId = new Map(doc.tasks.map((t) => [t.id, t]));
-  return snapshots.every((s) => {
-    const t = byId.get(s.id);
-    return t !== undefined && same(t, s);
-  });
+  let matched = 0;
+  for (const snapshot of snapshots) {
+    // Rolled-up group bars are derived, not stored: they are never user edits.
+    const task = byId.get(snapshot.id);
+    if (task === undefined) continue;
+    if (!same(task, snapshot)) return false;
+    matched++;
+  }
+  return matched === doc.tasks.length;
 }
 
 export function ingestTasks(snapshots: GanttTask[]): Mutation {

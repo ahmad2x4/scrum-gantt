@@ -44,6 +44,18 @@ export function GanttView({ store }: { store: Store }) {
       }),
     );
 
+    // Tighter rows: the default 70px cell fits only about seven rows on a
+    // laptop, and real plans have many more.
+    chart.yAxis.setAll({ minCellHeight: 38, childCellSize: 1, childShift: 18 });
+
+    // Structural edits belong to the structure panel, which enforces the
+    // Team -> Stream -> Item rules. The chart's own add/clear controls create
+    // rows the store never sees, which the next re-projection then wipes out.
+    // clearButton is a ConfirmButton, which does not stay hidden via the
+    // visible setting; hide(0) is what the amCharts reference documents.
+    chart.addButton.hide(0);
+    chart.clearButton.hide(0);
+
     // Echo guard #1: ignore valueschanged fired by our own writes.
     let applying = false;
 

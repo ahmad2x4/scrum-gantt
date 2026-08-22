@@ -1,4 +1,4 @@
-import type { PlanDocument } from "../core/types";
+import type { Calendar, PlanDocument, Task } from "../core/types";
 
 export interface GanttCategory {
   id: string;
@@ -29,6 +29,62 @@ export function hexToNumber(hex: string): number {
   return parseInt(cleaned, 16);
 }
 
+const MS_PER_UNIT: Record<Calendar["durationUnit"], number> = {
+  day: 86_400_000,
+  week: 604_800_000,
+};
+
+/**
+ * Group rows carry no task of their own, but the Gantt draws no bar for them
+ * either, so a team row would read as 0% forever. Synthesise a bar spanning the
+ * earliest start to the latest end of every item beneath it, with progress
+ * weighted by duration.
+ */
+function rollUpGroups(doc: PlanDocument, msPerUnit: number): GanttTask[] {
+  const taskById = new Map(doc.tasks.map((t) => [t.id, t]));
+  const childrenOf = new Map<string, string[]>();
+  for (const row of doc.rows) {
+    if (row.parentId === undefined) continue;
+    const siblings = childrenOf.get(row.parentId);
+    if (siblings) siblings.push(row.id);
+    else childrenOf.set(row.parentId, [row.id]);
+  }
+
+  const descendantTasks = (rootId: string): Task[] => {
+    const found: Task[] = [];
+    const stack = [rootId];
+    while (stack.length > 0) {
+      const id = stack.pop()!;
+      for (const childId of childrenOf.get(id) ?? []) {
+        const task = taskById.get(childId);
+        if (task) found.push(task);
+        stack.push(childId);
+      }
+    }
+    return found;
+  };
+
+  const out: GanttTask[] = [];
+  for (const row of doc.rows) {
+    if (row.kind === "item") continue;
+    const children = descendantTasks(row.id);
+    if (children.length === 0) continue;
+
+    const start = Math.min(...children.map((t) => t.start));
+    const end = Math.max(...children.map((t) => t.start + t.duration * msPerUnit));
+    const weight = children.reduce((sum, t) => sum + t.duration, 0);
+    const weighted = children.reduce((sum, t) => sum + t.duration * (t.progress ?? 0), 0);
+
+    out.push({
+      id: row.id,
+      start,
+      duration: (end - start) / msPerUnit,
+      progress: toChartProgress(weight > 0 ? weighted / weight : 0),
+    });
+  }
+  return out;
+}
+
 export function project(doc: PlanDocument): { categories: GanttCategory[]; tasks: GanttTask[] } {
   const categories = doc.rows.map((row) => {
     const c: GanttCategory = { id: row.id, name: row.name };
@@ -45,5 +101,5 @@ export function project(doc: PlanDocument): { categories: GanttCategory[]; tasks
     return t;
   });
 
-  return { categories, tasks };
+  return { categories, tasks: [...rollUpGroups(doc, MS_PER_UNIT[doc.calendar.durationUnit]), ...tasks] };
 }

@@ -80,3 +80,63 @@ describe("progress scale", () => {
     expect(tasks[0].progress).toBe(0);
   });
 });
+
+describe("group roll-up", () => {
+  const tree = (): PlanDocument =>
+    doc({
+      rows: [
+        { id: "t1", name: "Falcon", kind: "team" },
+        { id: "s1", name: "Payments", kind: "stream", parentId: "t1" },
+        { id: "a", name: "A", kind: "item", parentId: "s1" },
+        { id: "b", name: "B", kind: "item", parentId: "s1" },
+      ],
+      tasks: [
+        { id: "a", start: 0, duration: 10, progress: 100 },
+        { id: "b", start: 10 * 86400000, duration: 10, progress: 0 },
+      ],
+    });
+
+  it("spans a group bar from the earliest start to the latest end", () => {
+    const { tasks } = project(tree());
+    const team = tasks.find((t) => t.id === "t1")!;
+    expect(team.start).toBe(0);
+    expect(team.duration).toBe(20);
+  });
+
+  it("weights group progress by duration", () => {
+    const { tasks } = project(tree());
+    // 10 days at 100% and 10 days at 0% average to 50%, i.e. 0.5 on the chart.
+    expect(tasks.find((t) => t.id === "t1")!.progress).toBe(0.5);
+    expect(tasks.find((t) => t.id === "s1")!.progress).toBe(0.5);
+  });
+
+  it("rolls up through intermediate levels, not just direct children", () => {
+    const { tasks } = project(tree());
+    expect(tasks.find((t) => t.id === "t1")!.duration).toBe(
+      tasks.find((t) => t.id === "s1")!.duration,
+    );
+  });
+
+  it("emits no bar for a group with no items beneath it", () => {
+    const { tasks } = project(doc({ rows: [{ id: "t1", name: "Empty", kind: "team" }] }));
+    expect(tasks.find((t) => t.id === "t1")).toBeUndefined();
+  });
+
+  it("respects the week duration unit when spanning", () => {
+    const base = tree();
+    const weekly: PlanDocument = {
+      ...base,
+      calendar: { ...base.calendar, durationUnit: "week" },
+      tasks: [
+        { id: "a", start: 0, duration: 1, progress: 0 },
+        { id: "b", start: 604800000, duration: 1, progress: 0 },
+      ],
+    };
+    expect(project(weekly).tasks.find((t) => t.id === "t1")!.duration).toBe(2);
+  });
+
+  it("leaves item tasks untouched", () => {
+    const { tasks } = project(tree());
+    expect(tasks.find((t) => t.id === "a")).toEqual({ id: "a", start: 0, duration: 10, progress: 1 });
+  });
+});

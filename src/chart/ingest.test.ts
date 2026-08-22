@@ -98,3 +98,41 @@ describe("progress scale", () => {
     expect(isEcho(doc, [{ id: "a", start: 1000, duration: 5, progress: 0.7 }])).toBe(true);
   });
 });
+
+describe("group roll-up snapshots", () => {
+  it("ignores rolled-up group bars rather than treating them as edits", () => {
+    const doc = seeded();
+    const next = ingestTasks([
+      { id: "t1", start: 1000, duration: 5, progress: 0 },
+      { id: "s1", start: 1000, duration: 5, progress: 0 },
+      { id: "a", start: 1000, duration: 5, progress: 0 },
+    ])(doc);
+    expect(next.tasks).toHaveLength(1);
+    expect(next.tasks[0].id).toBe("a");
+  });
+
+  it("still detects an echo when the chart also carries group bars", () => {
+    const doc = seeded();
+    expect(
+      isEcho(doc, [
+        { id: "t1", start: 1000, duration: 5, progress: 0 },
+        { id: "s1", start: 1000, duration: 5, progress: 0 },
+        { id: "a", start: 1000, duration: 5, progress: 0 },
+      ]),
+    ).toBe(true);
+  });
+
+  it("still detects a real edit when group bars are present", () => {
+    const doc = seeded();
+    expect(
+      isEcho(doc, [
+        { id: "t1", start: 1000, duration: 5, progress: 0 },
+        { id: "a", start: 9999, duration: 5, progress: 0 },
+      ]),
+    ).toBe(false);
+  });
+
+  it("is not an echo when a tracked task is missing from the chart", () => {
+    expect(isEcho(seeded(), [{ id: "t1", start: 1000, duration: 5 }])).toBe(false);
+  });
+});
