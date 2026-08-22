@@ -4,12 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Design and implementation plan are complete; application code is not yet written.
+All 19 planned tasks are implemented. The app renders the chart, edits
+structure, and saves to Drive with pinned revision history.
 
 - **Spec:** `docs/superpowers/specs/2026-08-22-scrum-gantt-design.md`
 - **Plan:** `docs/superpowers/plans/2026-08-22-scrum-gantt.md` (19 tasks, TDD, commit per task)
 
-Update the Commands and Architecture sections below as Task 1 onward land.
+Deferred by decision, not oversight: the sprint ruler, recorded in the spec's
+Backlog section.
+
+## Commands
+
+| Command            | Purpose                                                   |
+| ------------------ | --------------------------------------------------------- |
+| `npm run dev`      | Dev server at http://localhost:5173/scrum-gantt/          |
+| `npm test`         | Unit tests (vitest)                                       |
+| `npm run test:e2e` | Playwright smoke test — the only coverage for `GanttView` |
+| `npm run lint`     | oxlint, including the layer-boundary rules                |
+| `npm run build`    | Typecheck and production build                            |
+
+`npm test` passing is not sufficient evidence a change is sound: vitest
+transpiles without typechecking, so run `npm run build` too.
 
 ## What this is
 
