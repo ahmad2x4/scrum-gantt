@@ -1,4 +1,5 @@
-import type { Calendar, PlanDocument, Task } from "../core/types";
+import type { PlanDocument, Task } from "../core/types";
+import { endOfWork, workingUnitsBetween } from "../core/workdays";
 
 export interface GanttCategory {
   id: string;
@@ -29,18 +30,13 @@ export function hexToNumber(hex: string): number {
   return parseInt(cleaned, 16);
 }
 
-const MS_PER_UNIT: Record<Calendar["durationUnit"], number> = {
-  day: 86_400_000,
-  week: 604_800_000,
-};
-
 /**
  * Group rows carry no task of their own, but the Gantt draws no bar for them
  * either, so a team row would read as 0% forever. Synthesise a bar spanning the
  * earliest start to the latest end of every item beneath it, with progress
  * weighted by duration.
  */
-function rollUpGroups(doc: PlanDocument, msPerUnit: number): GanttTask[] {
+function rollUpGroups(doc: PlanDocument): GanttTask[] {
   const taskById = new Map(doc.tasks.map((t) => [t.id, t]));
   const childrenOf = new Map<string, string[]>();
   for (const row of doc.rows) {
@@ -70,15 +66,17 @@ function rollUpGroups(doc: PlanDocument, msPerUnit: number): GanttTask[] {
     const children = descendantTasks(row.id);
     if (children.length === 0) continue;
 
+    // Spans must be measured the way the chart measures them: in working
+    // units, so a group bar reaches exactly as far as its longest child.
     const start = Math.min(...children.map((t) => t.start));
-    const end = Math.max(...children.map((t) => t.start + t.duration * msPerUnit));
+    const end = Math.max(...children.map((t) => endOfWork(t.start, t.duration, doc.calendar)));
     const weight = children.reduce((sum, t) => sum + t.duration, 0);
     const weighted = children.reduce((sum, t) => sum + t.duration * (t.progress ?? 0), 0);
 
     out.push({
       id: row.id,
       start,
-      duration: (end - start) / msPerUnit,
+      duration: workingUnitsBetween(start, end, doc.calendar),
       progress: toChartProgress(weight > 0 ? weighted / weight : 0),
     });
   }
@@ -101,5 +99,5 @@ export function project(doc: PlanDocument): { categories: GanttCategory[]; tasks
     return t;
   });
 
-  return { categories, tasks: [...rollUpGroups(doc, MS_PER_UNIT[doc.calendar.durationUnit]), ...tasks] };
+  return { categories, tasks: [...rollUpGroups(doc), ...tasks] };
 }

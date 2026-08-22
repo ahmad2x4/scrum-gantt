@@ -82,6 +82,11 @@ describe("progress scale", () => {
 });
 
 describe("group roll-up", () => {
+  // Anchored to a real Monday: epoch 0 lands on a different weekday depending
+  // on the runner's timezone, which would make working-day maths untestable.
+  const MON = new Date(2026, 7, 17).getTime();
+  const DAY = 86_400_000;
+
   const tree = (): PlanDocument =>
     doc({
       rows: [
@@ -91,15 +96,17 @@ describe("group roll-up", () => {
         { id: "b", name: "B", kind: "item", parentId: "s1" },
       ],
       tasks: [
-        { id: "a", start: 0, duration: 10, progress: 100 },
-        { id: "b", start: 10 * 86400000, duration: 10, progress: 0 },
+        { id: "a", start: MON, duration: 10, progress: 100 },
+        { id: "b", start: MON + 14 * DAY, duration: 10, progress: 0 },
       ],
     });
 
   it("spans a group bar from the earliest start to the latest end", () => {
     const { tasks } = project(tree());
     const team = tasks.find((t) => t.id === "t1")!;
-    expect(team.start).toBe(0);
+    expect(team.start).toBe(MON);
+    // Two consecutive 10-working-day tasks: four full working weeks, measured
+    // the way the chart measures them rather than as 28 calendar days.
     expect(team.duration).toBe(20);
   });
 
@@ -128,8 +135,8 @@ describe("group roll-up", () => {
       ...base,
       calendar: { ...base.calendar, durationUnit: "week" },
       tasks: [
-        { id: "a", start: 0, duration: 1, progress: 0 },
-        { id: "b", start: 604800000, duration: 1, progress: 0 },
+        { id: "a", start: MON, duration: 1, progress: 0 },
+        { id: "b", start: MON + 7 * DAY, duration: 1, progress: 0 },
       ],
     };
     expect(project(weekly).tasks.find((t) => t.id === "t1")!.duration).toBe(2);
@@ -137,6 +144,6 @@ describe("group roll-up", () => {
 
   it("leaves item tasks untouched", () => {
     const { tasks } = project(tree());
-    expect(tasks.find((t) => t.id === "a")).toEqual({ id: "a", start: 0, duration: 10, progress: 1 });
+    expect(tasks.find((t) => t.id === "a")).toEqual({ id: "a", start: MON, duration: 10, progress: 1 });
   });
 });
