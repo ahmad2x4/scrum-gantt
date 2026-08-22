@@ -13,6 +13,7 @@ import { Toolbar } from "./ui/Toolbar";
 import { StructurePanel } from "./ui/StructurePanel";
 import { OpenDialog } from "./ui/OpenDialog";
 import { HistoryDialog } from "./ui/HistoryDialog";
+import { SaveAsDialog } from "./ui/SaveAsDialog";
 import { ConflictBanner } from "./ui/ConflictBanner";
 import { useDraftAutosave } from "./ui/useDraftAutosave";
 import { useDirty } from "./ui/useStore";
@@ -61,7 +62,9 @@ export default function App() {
   useDraftAutosave(store, status.fileId);
 
   const [panelCollapsed, togglePanel] = usePanelCollapsed();
-  const [dialog, setDialog] = useState<"none" | "open" | "history">("none");
+  const [dialog, setDialog] = useState<"none" | "open" | "history" | "saveAs">(
+    "none",
+  );
   const [plans, setPlans] = useState<PlanFile[]>([]);
   const [revisions, setRevisions] = useState<RevisionInfo[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -138,11 +141,6 @@ export default function App() {
     }
   }
 
-  function saveAs() {
-    const name = window.prompt("Save plan as", store.get().name);
-    if (name) void ensureAuthThen(() => controller.saveAs(name));
-  }
-
   // Held in a ref so the window listener is registered once rather than on
   // every render, while still calling the current closure.
   const onSaveShortcut = useRef<() => void>(undefined);
@@ -168,7 +166,7 @@ export default function App() {
         saving={status.saving}
         onOpen={() => void openDialog()}
         onSave={() => void ensureAuthThen(() => controller.save())}
-        onSaveAs={saveAs}
+        onSaveAs={() => setDialog("saveAs")}
         onHistory={() => void historyDialog()}
         onTogglePanel={togglePanel}
         panelCollapsed={panelCollapsed}
@@ -214,6 +212,16 @@ export default function App() {
             setDialog("none");
           }}
           onBrowseDrive={() => void browseDrive()}
+          onClose={() => setDialog("none")}
+        />
+      )}
+      {dialog === "saveAs" && (
+        <SaveAsDialog
+          initialName={store.get().name}
+          onConfirm={(name) => {
+            setDialog("none");
+            void ensureAuthThen(() => controller.saveAs(name));
+          }}
           onClose={() => setDialog("none")}
         />
       )}

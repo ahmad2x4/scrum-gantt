@@ -1,10 +1,12 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 
 export interface DialogProps {
   title: string;
   onClose(): void;
   children: ReactNode;
   footer?: ReactNode;
+  /** Element to focus on open instead of the panel — a text field, never an action. */
+  initialFocus?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -12,7 +14,13 @@ export interface DialogProps {
  * click both close, and focus moves inside on open so the keyboard is not
  * left behind the overlay.
  */
-export function Dialog({ title, onClose, children, footer }: DialogProps) {
+export function Dialog({
+  title,
+  onClose,
+  children,
+  footer,
+  initialFocus,
+}: DialogProps) {
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,11 +32,13 @@ export function Dialog({ title, onClose, children, footer }: DialogProps) {
   }, [onClose]);
 
   useEffect(() => {
-    // The panel itself, never the first control: focusing a button means a
+    // The panel itself, never a control by default: focusing a button means a
     // stray Enter — from the keystroke that dismissed a sign-in popup, say —
-    // fires an action the user never chose. Tab still reaches the controls.
-    panel.current?.focus();
-  }, []);
+    // fires an action the user never chose. A caller may name a text field,
+    // where typing is the expected next move and Enter is safe.
+    (initialFocus?.current ?? panel.current)?.focus();
+    // Callers pass a stable ref, so this runs once per open.
+  }, [initialFocus]);
 
   return (
     <div

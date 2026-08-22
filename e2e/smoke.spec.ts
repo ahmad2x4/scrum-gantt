@@ -76,3 +76,37 @@ test("an edit survives a reload through the local draft", async ({ page }) => {
   await page.reload();
   await expect(page.getByText("New team").first()).toBeVisible();
 });
+
+test("Save as… takes a name from the keyboard alone", async ({ page }) => {
+  await blockGoogle(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: /save as/i }).click();
+
+  const field = page.getByRole("textbox", { name: /plan name/i });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("Untitled plan");
+
+  // Typing replaces the selected name, and Enter submits without reaching for
+  // the mouse. The submit button sits outside the form and is associated by
+  // its form attribute, so this is the assertion that proves that wiring.
+  await page.keyboard.type("Q3 Delivery Plan");
+  await expect(field).toHaveValue("Q3 Delivery Plan");
+  await page.keyboard.press("Enter");
+
+  await expect(page.locator(".dialog-backdrop")).toBeHidden();
+});
+
+test("Save as… refuses an empty name", async ({ page }) => {
+  await blockGoogle(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: /save as/i }).click();
+
+  await page.getByRole("textbox", { name: /plan name/i }).fill("");
+  // Scoped to the dialog: the toolbar has a Save button of its own.
+  const confirm = page
+    .locator(".dialog")
+    .getByRole("button", { name: /^save$/i });
+  await expect(confirm).toBeDisabled();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".dialog-backdrop")).toBeVisible();
+});
