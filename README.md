@@ -15,12 +15,13 @@ npm run dev
 
 ## Scripts
 
-| Command         | Purpose                              |
-| --------------- | ------------------------------------ |
-| `npm run dev`   | Local dev server on port 5173        |
-| `npm test`      | Unit tests                           |
-| `npm run lint`  | Lint, including layer-boundary rules |
-| `npm run build` | Production build into `dist/`        |
+| Command            | Purpose                              |
+| ------------------ | ------------------------------------ |
+| `npm run dev`      | Local dev server on port 5173        |
+| `npm test`         | Unit tests                           |
+| `npm run lint`     | Lint, including layer-boundary rules |
+| `npm run build`    | Production build into `dist/`        |
+| `npm run test:e2e` | Playwright smoke test                |
 
 ## Google Cloud setup
 
