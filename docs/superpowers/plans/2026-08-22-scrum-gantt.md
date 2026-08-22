@@ -26,6 +26,10 @@ Every task's requirements implicitly include this section.
 - **`CURRENT_SCHEMA_VERSION = 1`.**
 - **Prohibited:** service account keys, OAuth client secrets, stored refresh tokens.
 - **amCharts:** use the `.new()` factory (never `new ClassName()`), pass `root` as the first argument, set data last, and call `root.dispose()` (never `chart.dispose()`) on teardown.
+- **No constructor parameter properties** (`constructor(public x: T)`). The
+  TypeScript 6 template enables `erasableSyntaxOnly`, which rejects them.
+  Declare the field and assign it in the body. Vitest transpiles without
+  typechecking, so only `npm run build` catches this — run it before committing.
 - **Commit after every task.** Conventional commit prefixes (`feat:`, `test:`, `chore:`, `fix:`).
 
 ## File Structure
@@ -572,9 +576,12 @@ export interface Violation {
 }
 
 export class InvariantError extends Error {
-  constructor(public violations: Violation[]) {
+  readonly violations: Violation[];
+
+  constructor(violations: Violation[]) {
     super(violations.map((v) => v.message).join("; "));
     this.name = "InvariantError";
+    this.violations = violations;
   }
 }
 
@@ -2576,9 +2583,12 @@ export interface PlanFile { id: string; name: string; modifiedTime: string }
 export interface RevisionInfo { id: string; modifiedTime: string }
 
 export class ConflictError extends Error {
-  constructor(public remoteHeadRevisionId: string) {
+  readonly remoteHeadRevisionId: string;
+
+  constructor(remoteHeadRevisionId: string) {
     super("This plan was changed elsewhere since you opened it.");
     this.name = "ConflictError";
+    this.remoteHeadRevisionId = remoteHeadRevisionId;
   }
 }
 

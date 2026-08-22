@@ -7,9 +7,12 @@ export interface Violation {
 }
 
 export class InvariantError extends Error {
-  constructor(public violations: Violation[]) {
+  readonly violations: Violation[];
+
+  constructor(violations: Violation[]) {
     super(violations.map((v) => v.message).join("; "));
     this.name = "InvariantError";
+    this.violations = violations;
   }
 }
 
