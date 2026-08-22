@@ -71,3 +71,9 @@ key), not from hiding them. Use GitHub repository **Variables**, not Secrets.
 
 Never introduce a service account key, an OAuth client secret, or a stored
 refresh token. If a feature seems to need one, it needs a backend instead.
+
+Local development needs `http://localhost:5173` added to the OAuth client's
+authorized origins **and** `http://localhost:5173/*` to the API key's website
+restrictions. Both are separate credentials with separate restriction lists;
+missing the API key one surfaces as the Picker claiming the key is invalid.
+See `.env.example` for the full console checklist.
