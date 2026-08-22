@@ -8,13 +8,12 @@ export interface ToolbarProps {
   onSaveAs(): void;
   onHistory(): void;
   onTogglePanel(): void;
-  onFit(): void;
   panelCollapsed: boolean;
   saving: boolean;
 }
 
 export function Toolbar({
-  store, onOpen, onSave, onSaveAs, onHistory, onTogglePanel, onFit, panelCollapsed, saving,
+  store, onOpen, onSave, onSaveAs, onHistory, onTogglePanel, panelCollapsed, saving,
 }: ToolbarProps) {
   const plan = usePlan(store);
   const dirty = useDirty(store);
@@ -37,7 +36,6 @@ export function Toolbar({
         </span>
       )}
       <span className="spacer" />
-      <button onClick={onFit} title="Zoom so the whole plan fits">Fit plan</button>
       <button onClick={onOpen}>Open</button>
       <button onClick={onSave} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
       <button onClick={onSaveAs} disabled={saving}>Save as…</button>

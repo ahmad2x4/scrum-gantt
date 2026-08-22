@@ -13,22 +13,12 @@ const SETTLE_MS = 2000;
 /** Breathing room either side of the plan when fitting, as a fraction. */
 const FIT_PAD = 0.04;
 
-export interface GanttHandle {
-  fit(): void;
-}
-
 /** Gantt wants number | Percent; the document stores a string like "30%". */
 function toWidth(value: string): number | am5.Percent {
   return value.trim().endsWith("%") ? am5.percent(parseFloat(value)) : parseFloat(value);
 }
 
-export function GanttView({
-  store,
-  handleRef,
-}: {
-  store: Store;
-  handleRef?: { current: GanttHandle | null };
-}) {
+export function GanttView({ store }: { store: Store }) {
   const divRef = useRef<HTMLDivElement>(null);
 
   // Empty deps: the chart is created once and fed through the store
@@ -123,9 +113,10 @@ export function GanttView({
 
     apply();
 
-    // Open showing the whole plan rather than an arbitrary window.
+    // Open showing the whole plan rather than an arbitrary window. On-demand
+    // refitting is the chart's own "Fit to view" control, so no handle is
+    // exposed for it here.
     fit();
-    if (handleRef) handleRef.current = { fit };
 
     // Today marker: the Gantt has a built-in date marking API, so use that
     // rather than hand-rolling an axis range.
@@ -136,10 +127,9 @@ export function GanttView({
 
     return () => {
       unsubscribe();
-      if (handleRef) handleRef.current = null;
       root.dispose(); // never chart.dispose()
     };
-  }, [store, handleRef]);
+  }, [store]);
 
   return <div ref={divRef} style={{ width: "100%", height: "100%" }} />;
 }

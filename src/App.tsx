@@ -1,9 +1,9 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import "./ui/app.css";
 import { createStore } from "./core/store";
 import { emptyPlan } from "./core/schema";
 import { addTeam, addStream, addItem, setRowColor, updateTask } from "./core/mutations";
-import { GanttView, type GanttHandle } from "./chart/GanttView";
+import { GanttView } from "./chart/GanttView";
 import { Toolbar } from "./ui/Toolbar";
 import { StructurePanel } from "./ui/StructurePanel";
 import { usePanelCollapsed } from "./ui/usePanelCollapsed";
@@ -42,7 +42,6 @@ const notYet = () => window.alert("Google Drive is wired up in a later task.");
 export default function App() {
   const store = useMemo(() => demoStore(), []);
   const [panelCollapsed, togglePanel] = usePanelCollapsed();
-  const gantt = useRef<GanttHandle | null>(null);
 
   return (
     <div className="app">
@@ -54,13 +53,12 @@ export default function App() {
         onSaveAs={notYet}
         onHistory={notYet}
         onTogglePanel={togglePanel}
-        onFit={() => gantt.current?.fit()}
         panelCollapsed={panelCollapsed}
       />
       <div className="workspace">
         {!panelCollapsed && <StructurePanel store={store} />}
         <main className="chart-area">
-          <GanttView store={store} handleRef={gantt} />
+          <GanttView store={store} />
         </main>
       </div>
     </div>

@@ -9,7 +9,7 @@ import { addTeam } from "../core/mutations";
 const noop = () => {};
 const props = (store: ReturnType<typeof createStore>, over = {}) => ({
   store, onOpen: noop, onSave: noop, onSaveAs: noop, onHistory: noop,
-  onTogglePanel: noop, onFit: noop, panelCollapsed: false, saving: false, ...over,
+  onTogglePanel: noop, panelCollapsed: false, saving: false, ...over,
 });
 
 describe("Toolbar", () => {
@@ -62,13 +62,6 @@ describe("Toolbar", () => {
   it("offers to show the panel again once collapsed", () => {
     render(<Toolbar {...props(createStore(emptyPlan("p")), { panelCollapsed: true })} />);
     expect(screen.getByRole("button", { name: /show structure panel/i })).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("calls onFit when Fit plan is clicked", async () => {
-    const onFit = vi.fn();
-    render(<Toolbar {...props(createStore(emptyPlan("p")), { onFit })} />);
-    await userEvent.click(screen.getByRole("button", { name: /fit plan/i }));
-    expect(onFit).toHaveBeenCalledOnce();
   });
 
   it("reflects a later plan rename without a remount", async () => {
