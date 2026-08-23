@@ -150,6 +150,10 @@ export function GanttView({
         // the thing that guarantees it; this only keeps the affordance honest.
         const editable = doc.locked !== true;
         if (chart.get("editable") !== editable) chart.set("editable", editable);
+        // The chart's own edit toggle sets `editable` directly (Gantt.js:360)
+        // and is not one of the buttons _toggleEditable hides, so leaving it
+        // on screen offers a one-click way out of the lock.
+        chart.editButton.set("forceHidden", !editable);
 
         // Set data last, and category data before series data.
         chart.yAxis.data.setAll(
@@ -193,7 +197,19 @@ export function GanttView({
       () => {
         if (applying) return;
         const snapshots = chart.series.data.values as unknown as GanttTask[];
+        // Echo check first, so the re-projection below settles: once the chart
+        // holds the stored values again its next report is an echo and stops.
         if (isEcho(store.get(), snapshots)) return;
+
+        // A locked plan refuses the edit at the store, and a refusal notifies
+        // nobody — so without this the chart would keep drawing the stretched
+        // bar it will never be allowed to keep, until the next reload. Redraw
+        // from the document instead, which snaps it back.
+        if (store.get().locked) {
+          apply();
+          return;
+        }
+
         store.apply(ingestTasks(snapshots), { dirty: !isSettling() });
       },
       300,
@@ -308,6 +324,14 @@ export function GanttView({
 
     // Two-finger horizontal scrolling pans time, the conventional gesture.
     chart.xyChart.set("wheelX", "panX");
+
+    // Last line of defence for the chart's editing state. Anything that flips
+    // the setting — the edit button, a keyboard path, a future amCharts
+    // affordance — is undone while the plan is locked, so the grips cannot
+    // come back without going through the unlock flow.
+    chart.on("editable", (value) => {
+      if (value && store.get().locked) chart.set("editable", false);
+    });
 
     if (handleRef) handleRef.current = { fit };
 
