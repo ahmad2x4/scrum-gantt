@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { createStore } from "./store";
 import { emptyPlan } from "./schema";
 import { addTeam, renameRow } from "./mutations";
+import type { Mutation } from "./mutations";
+import type { PlanDocument } from "./types";
 
 describe("createStore", () => {
   it("exposes the initial document and starts clean", () => {
@@ -113,5 +115,59 @@ describe("markDirty", () => {
     store.subscribe(seen);
     store.markDirty();
     expect(seen).not.toHaveBeenCalled();
+  });
+});
+
+describe("lock gate", () => {
+  const locked = (): PlanDocument => ({ ...emptyPlan("p"), locked: true });
+  const rename =
+    (name: string): Mutation =>
+    (doc) => ({ ...doc, name });
+
+  it("refuses an edit while the plan is locked", () => {
+    const store = createStore(locked());
+    store.apply(rename("changed"));
+    expect(store.get().name).toBe("p");
+  });
+
+  it("does not notify subscribers when it refuses", () => {
+    // A refusal that notified would re-render and re-project for nothing, and
+    // the chart would be handed the same data it already has.
+    const store = createStore(locked());
+    let calls = 0;
+    store.subscribe(() => calls++);
+    store.apply(rename("changed"));
+    expect(calls).toBe(0);
+  });
+
+  it("does not mark the plan dirty when it refuses", () => {
+    const store = createStore(locked());
+    store.apply(rename("changed"));
+    expect(store.isDirty()).toBe(false);
+  });
+
+  it("lets a caller opt out, which is how the plan gets unlocked", () => {
+    const store = createStore(locked());
+    store.apply((doc) => ({ ...doc, locked: false }), { allowLocked: true });
+    expect(store.get().locked).toBe(false);
+  });
+
+  it("applies normally once unlocked", () => {
+    const store = createStore(locked());
+    store.apply((doc) => ({ ...doc, locked: false }), { allowLocked: true });
+    store.apply(rename("changed"));
+    expect(store.get().name).toBe("changed");
+  });
+
+  it("still allows replace, so opening and restoring keep working", () => {
+    const store = createStore(locked());
+    store.replace({ ...emptyPlan("other"), locked: true });
+    expect(store.get().name).toBe("other");
+  });
+
+  it("leaves an unlocked plan entirely alone", () => {
+    const store = createStore(emptyPlan("p"));
+    store.apply(rename("changed"));
+    expect(store.get().name).toBe("changed");
   });
 });

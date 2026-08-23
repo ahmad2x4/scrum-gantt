@@ -349,3 +349,32 @@
   border-color: currentColor;
   font-weight: 600;
 }
+
+.toolbar .lock {
+  padding: 2px 6px;
+  font-size: 0.95rem;
+  line-height: 1;
+  background: none;
+  border: 1px solid transparent;
+}
+.toolbar .lock.on {
+  border-color: var(--accent, #6aa9ff);
+}
+.locked-note {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  opacity: 0.85;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.15);
+}
+.dialog .danger {
+  font-weight: 600;
+}
+.structure-row input[type="color"]:disabled,
+.structure-row button:disabled,
+.structure-panel button:disabled,
+.unit-group button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

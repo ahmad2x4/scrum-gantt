@@ -11,6 +11,7 @@ import {
   updateTask,
   moveRow,
   setDurationUnit,
+  setLocked,
 } from "./mutations";
 import type { PlanDocument } from "./types";
 
@@ -192,5 +193,24 @@ describe("setDurationUnit", () => {
   it("is a no-op when the unit is unchanged, so durations never drift", () => {
     const doc = withTask(5);
     expect(setDurationUnit("day")(doc)).toBe(doc);
+  });
+});
+
+describe("setLocked", () => {
+  it("freezes the plan", () => {
+    expect(setLocked(true)(emptyPlan("p")).locked).toBe(true);
+  });
+
+  it("releases it again", () => {
+    expect(setLocked(false)(setLocked(true)(emptyPlan("p"))).locked).toBe(
+      false,
+    );
+  });
+
+  it("changes nothing else about the plan", () => {
+    const doc = emptyPlan("p");
+    const { locked, ...rest } = setLocked(true)(doc);
+    expect(locked).toBe(true);
+    expect(rest).toEqual(doc);
   });
 });

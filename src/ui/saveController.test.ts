@@ -343,3 +343,68 @@ describe("dismissError", () => {
     expect(c.getStatus().error).toBeNull();
   });
 });
+
+describe("locking", () => {
+  const lockedPlan = (name: string) => ({ ...emptyPlan(name), locked: true });
+
+  it("keeps the current lock when restoring a revision", async () => {
+    // The revision predates the lock, so adopting its locked field wholesale
+    // would unlock the plan through the History dialog — a hole straight
+    // through the lock. Content rolls back; the lock does not.
+    const store = createStore(lockedPlan("p"));
+    const drive = driveStub({
+      readRevision: vi.fn(async () => emptyPlan("old")),
+    });
+    const c = createSaveController({ store, drive });
+    await c.openFile("file-1");
+    store.apply(() => lockedPlan("p"), { allowLocked: true });
+    await c.restore("rev-0");
+    expect(store.get().name).toBe("old");
+    expect(store.get().locked).toBe(true);
+  });
+
+  it("leaves an unlocked plan unlocked when restoring", async () => {
+    const store = createStore(emptyPlan("p"));
+    const drive = driveStub({
+      readRevision: vi.fn(async () => lockedPlan("old")),
+    });
+    const c = createSaveController({ store, drive });
+    await c.openFile("file-1");
+    await c.restore("rev-0");
+    expect(store.get().locked).toBeUndefined();
+  });
+
+  it("adopts the lock of a plan it opens, which is a different file", async () => {
+    const store = createStore(emptyPlan("p"));
+    const drive = driveStub({
+      read: vi.fn(async () => ({
+        doc: lockedPlan("remote"),
+        headRevisionId: "rev-1",
+      })),
+    });
+    const c = createSaveController({ store, drive });
+    await c.openFile("file-9");
+    expect(store.get().locked).toBe(true);
+  });
+
+  it("writes an unlocked copy from Save as, so the branch is workable", async () => {
+    const store = createStore(lockedPlan("Baseline"));
+    const drive = driveStub();
+    const c = createSaveController({ store, drive });
+    await c.saveAs("Baseline copy");
+    expect(store.get().locked).toBe(false);
+    expect(drive.create).toHaveBeenCalledWith(
+      "Baseline copy",
+      expect.objectContaining({ locked: false }),
+    );
+  });
+
+  it("renames on Save as even though the plan was locked", async () => {
+    // The rename goes through apply, which the lock gate would otherwise
+    // refuse, silently writing the copy under the old name.
+    const store = createStore(lockedPlan("Baseline"));
+    const c = createSaveController({ store, drive: driveStub() });
+    await c.saveAs("Baseline copy");
+    expect(store.get().name).toBe("Baseline copy");
+  });
+});

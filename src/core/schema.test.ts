@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { emptyPlan, validate, SchemaError, CURRENT_SCHEMA_VERSION } from "./schema";
+import {
+  emptyPlan,
+  validate,
+  SchemaError,
+  CURRENT_SCHEMA_VERSION,
+} from "./schema";
 
 describe("emptyPlan", () => {
   it("produces a valid document at the current schema version", () => {
@@ -24,7 +29,9 @@ describe("validate", () => {
   });
 
   it("rejects a missing schemaVersion", () => {
-    expect(() => validate({ name: "x", rows: [], tasks: [] })).toThrow(/schemaVersion/);
+    expect(() => validate({ name: "x", rows: [], tasks: [] })).toThrow(
+      /schemaVersion/,
+    );
   });
 
   it("refuses a newer schemaVersion by name", () => {
@@ -44,5 +51,25 @@ describe("validate", () => {
     // @ts-expect-error deliberately invalid
     doc.rows = "not an array";
     expect(() => validate(doc)).toThrow(/rows/);
+  });
+});
+
+describe("locked", () => {
+  const plan = (over: Record<string, unknown>) => ({
+    ...emptyPlan("p"),
+    ...over,
+  });
+
+  it("round-trips a locked plan", () => {
+    expect(validate(plan({ locked: true })).locked).toBe(true);
+  });
+
+  it("treats a plan saved before locking existed as unlocked", () => {
+    const doc = validate(plan({}));
+    expect(doc.locked).toBeUndefined();
+  });
+
+  it("rejects a locked field that is not a boolean", () => {
+    expect(() => validate(plan({ locked: "yes" }))).toThrow(SchemaError);
   });
 });

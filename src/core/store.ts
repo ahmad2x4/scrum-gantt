@@ -4,6 +4,11 @@ import type { Mutation } from "./mutations";
 export interface ApplyOptions {
   /** Whether the change counts as an unsaved user edit. Defaults to true. */
   dirty?: boolean;
+  /**
+   * Lets the mutation through on a locked plan. Only unlocking uses this —
+   * every other write is refused while the plan is a frozen baseline.
+   */
+  allowLocked?: boolean;
 }
 
 export interface Store {
@@ -35,6 +40,12 @@ export function createStore(initial: PlanDocument): Store {
     get: () => doc,
 
     apply(m, options) {
+      // The gate lives here rather than in the UI because the chart is a
+      // writer too: it reports its own valueschanged events, which ingest
+      // turns into a document. Disabling buttons would leave that path open.
+      // Refusing silently means no notify, so no render and no feedback loop.
+      if (doc.locked && !options?.allowLocked) return;
+
       const next = m(doc);
       if (equal(doc, next)) return;
       doc = next;

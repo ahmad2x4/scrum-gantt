@@ -14,11 +14,13 @@ import { StructurePanel } from "./ui/StructurePanel";
 import { OpenDialog } from "./ui/OpenDialog";
 import { HistoryDialog } from "./ui/HistoryDialog";
 import { SaveAsDialog } from "./ui/SaveAsDialog";
+import { UnlockDialog } from "./ui/UnlockDialog";
 import { ConflictBanner } from "./ui/ConflictBanner";
 import { useDraftAutosave } from "./ui/useDraftAutosave";
 import { useDirty } from "./ui/useStore";
 import { usePanelCollapsed } from "./ui/usePanelCollapsed";
 import { createSaveController } from "./ui/saveController";
+import { setLocked } from "./core/mutations";
 import {
   createAuth,
   defaultTokenClientFactory,
@@ -63,9 +65,9 @@ export default function App() {
 
   const [panelCollapsed, togglePanel] = usePanelCollapsed();
   const gantt = useRef<GanttHandle | null>(null);
-  const [dialog, setDialog] = useState<"none" | "open" | "history" | "saveAs">(
-    "none",
-  );
+  const [dialog, setDialog] = useState<
+    "none" | "open" | "history" | "saveAs" | "unlock"
+  >("none");
   const [plans, setPlans] = useState<PlanFile[]>([]);
   const [revisions, setRevisions] = useState<RevisionInfo[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -170,6 +172,7 @@ export default function App() {
         onSaveAs={() => setDialog("saveAs")}
         onHistory={() => void historyDialog()}
         onFit={() => gantt.current?.fit()}
+        onUnlock={() => setDialog("unlock")}
         onTogglePanel={togglePanel}
         panelCollapsed={panelCollapsed}
       />
@@ -223,6 +226,17 @@ export default function App() {
           onConfirm={(name) => {
             setDialog("none");
             void ensureAuthThen(() => controller.saveAs(name));
+          }}
+          onClose={() => setDialog("none")}
+        />
+      )}
+      {dialog === "unlock" && (
+        <UnlockDialog
+          planName={store.get().name}
+          onUnlock={() => {
+            // allowLocked: this is the one mutation the gate must let past.
+            store.apply(setLocked(false), { allowLocked: true });
+            setDialog("none");
           }}
           onClose={() => setDialog("none")}
         />

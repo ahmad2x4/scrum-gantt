@@ -13,6 +13,7 @@ const OPTIONS = [
 
 export function UnitSelect({ store }: { store: Store }) {
   const plan = usePlan(store);
+  const locked = plan.locked === true;
 
   return (
     <div className="unit-group" role="group" aria-label="Duration unit">
@@ -20,8 +21,9 @@ export function UnitSelect({ store }: { store: Store }) {
         <button
           key={o.label}
           aria-pressed={plan.calendar.durationUnit === o.unit}
+          disabled={locked}
           className={plan.calendar.durationUnit === o.unit ? "unit on" : "unit"}
-          title={o.title}
+          title={locked ? "The plan is locked" : o.title}
           onClick={() => store.apply(setDurationUnit(o.unit))}
         >
           {o.label}

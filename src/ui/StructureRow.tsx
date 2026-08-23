@@ -8,9 +8,19 @@ export interface StructureRowProps {
   onColor(hex: string): void;
   onDelete(): void;
   onMoveUp(): void;
+  /** A locked plan is for reading: every control here is a mutation. */
+  locked?: boolean;
 }
 
-export function StructureRow({ row, depth, onRename, onColor, onDelete, onMoveUp }: StructureRowProps) {
+export function StructureRow({
+  row,
+  depth,
+  onRename,
+  onColor,
+  onDelete,
+  onMoveUp,
+  locked = false,
+}: StructureRowProps) {
   const [editing, setEditing] = useState(false);
 
   const commit = (value: string) => {
@@ -20,8 +30,12 @@ export function StructureRow({ row, depth, onRename, onColor, onDelete, onMoveUp
   };
 
   return (
-    <div className="structure-row" data-depth={depth} style={{ paddingLeft: 8 + depth * 16 }}>
-      {editing ? (
+    <div
+      className="structure-row"
+      data-depth={depth}
+      style={{ paddingLeft: 8 + depth * 16 }}
+    >
+      {editing && !locked ? (
         <input
           autoFocus
           defaultValue={row.name}
@@ -36,18 +50,39 @@ export function StructureRow({ row, depth, onRename, onColor, onDelete, onMoveUp
           }}
         />
       ) : (
-        <span className="row-name" title={row.name}>{row.name}</span>
+        <span className="row-name" title={row.name}>
+          {row.name}
+        </span>
       )}
       <span className="spacer" />
       <input
         type="color"
         aria-label={`Colour for ${row.name}`}
+        disabled={locked}
         value={row.color ?? "#888888"}
         onChange={(e) => onColor(e.target.value)}
       />
-      <button aria-label={`Move ${row.name} up`} onClick={onMoveUp}>↑</button>
-      <button aria-label={`Rename ${row.name}`} onClick={() => setEditing(true)}>✎</button>
-      <button aria-label={`Delete ${row.name}`} onClick={onDelete}>✕</button>
+      <button
+        aria-label={`Move ${row.name} up`}
+        disabled={locked}
+        onClick={onMoveUp}
+      >
+        ↑
+      </button>
+      <button
+        aria-label={`Rename ${row.name}`}
+        disabled={locked}
+        onClick={() => setEditing(true)}
+      >
+        ✎
+      </button>
+      <button
+        aria-label={`Delete ${row.name}`}
+        disabled={locked}
+        onClick={onDelete}
+      >
+        ✕
+      </button>
     </div>
   );
 }

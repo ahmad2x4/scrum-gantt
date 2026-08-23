@@ -9,3 +9,7 @@ export function usePlan(store: Store): PlanDocument {
 export function useDirty(store: Store): boolean {
   return useSyncExternalStore(store.subscribe, store.isDirty);
 }
+
+export function useLocked(store: Store): boolean {
+  return usePlan(store).locked === true;
+}

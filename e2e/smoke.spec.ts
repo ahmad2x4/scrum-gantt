@@ -129,7 +129,9 @@ test("Fit drives the chart without errors", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("switching the duration unit keeps the plan's dates", async ({ page }) => {
+test("switching the duration unit converts durations losslessly", async ({
+  page,
+}) => {
   await blockGoogle(page);
   await page.goto("/");
   await page.getByRole("button", { name: /add team/i }).click();
@@ -141,23 +143,97 @@ test("switching the duration unit keeps the plan's dates", async ({ page }) => {
       () =>
         JSON.parse(localStorage.getItem("scrum-gantt:draft") || "null")?.doc,
     );
+  const task = async () => (await draft())?.tasks?.[0];
 
   // Poll for the task, not merely for a non-null draft: the autosave debounce
   // means an empty or absent draft is the normal state for the first second.
   await expect.poll(async () => (await draft())?.tasks?.length).toBe(1);
-  const before = await draft();
+  // And let the chart finish reconciling before reading a baseline, or the
+  // comparison below races its normalising write-back.
+  await page.waitForTimeout(2500);
+  const before = await task();
 
   await page.getByRole("button", { name: "1w" }).click();
   await expect
     .poll(async () => (await draft())?.calendar.durationUnit)
     .toBe("week");
+  await expect.poll(async () => (await task()).duration).toBe(1);
+
+  // The chart plans at week granularity in week mode, so it snaps starts to
+  // the start of their week. That is a real change to the plan, and it does
+  // not come back when the unit does — see the note in CLAUDE.md.
+  const inWeeks = await task();
+  expect(new Date(inWeeks.start).getDay()).toBe(1);
 
   await page.getByRole("button", { name: "1d" }).click();
   await expect
     .poll(async () => (await draft())?.calendar.durationUnit)
     .toBe("day");
 
-  // A round trip through weeks must leave the plan exactly as it was.
-  const after = await draft();
-  expect(after.tasks).toEqual(before.tasks);
+  // The duration is what must survive the round trip exactly: five working
+  // days is one working week is five working days.
+  const after = await task();
+  expect(after.duration).toBe(before.duration);
+  expect(after.start).toBe(inWeeks.start);
+});
+
+test("locking a plan stops edits until it is deliberately unlocked", async ({
+  page,
+}) => {
+  await blockGoogle(page);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /add team/i }).click();
+  await expect(page.getByText("New team").first()).toBeVisible();
+
+  await page.getByRole("button", { name: /lock plan/i }).click();
+
+  // The panel's controls go dead, and so does the unit selector.
+  await expect(page.getByRole("button", { name: /add team/i })).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: /delete new team/i }),
+  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "1w" })).toBeDisabled();
+
+  // The lock reaches the document, which is what the store gate reads.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("scrum-gantt:draft") || "null")?.doc
+            ?.locked,
+      ),
+    )
+    .toBe(true);
+
+  // A locked plan must sit still. The chart keeps reporting values of its own,
+  // and a gate that refused them noisily would churn the document forever.
+  const before = await page.evaluate(() =>
+    localStorage.getItem("scrum-gantt:draft"),
+  );
+  await page.waitForTimeout(3000);
+  expect(
+    await page.evaluate(() => localStorage.getItem("scrum-gantt:draft")),
+  ).toBe(before);
+
+  await page.getByRole("button", { name: /unlock plan/i }).click();
+
+  // Step one: the wrong name leaves Unlock dead.
+  const confirm = page
+    .locator(".dialog")
+    .getByRole("button", { name: /^unlock$/i });
+  await expect(confirm).toBeDisabled();
+  await page.getByRole("textbox", { name: /plan name/i }).fill("Untitled plan");
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+
+  // Step two: a separate confirmation, and only then is it editable again.
+  await page.getByRole("button", { name: /yes, unlock/i }).click();
+  await expect(page.getByRole("button", { name: /add team/i })).toBeEnabled();
+
+  await page.getByRole("button", { name: /add team/i }).click();
+  await expect(page.getByText("New team")).toHaveCount(2);
+  expect(errors).toEqual([]);
 });

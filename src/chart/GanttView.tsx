@@ -69,7 +69,7 @@ export function GanttView({
     const doc0 = store.get();
     const chart = root.container.children.push(
       am5gantt.Gantt.new(root, {
-        editable: true,
+        editable: doc0.locked !== true,
         ...chartCalendar(doc0.calendar),
         sidebarWidth: toWidth(doc0.view.sidebarWidth),
       }),
@@ -144,6 +144,12 @@ export function GanttView({
           appliedCalendar = signature;
           chart.setAll(chartCalendar(doc.calendar));
         }
+
+        // A locked plan loses the drag handles rather than letting a drag look
+        // like it worked and be refused by the store. The store gate is still
+        // the thing that guarantees it; this only keeps the affordance honest.
+        const editable = doc.locked !== true;
+        if (chart.get("editable") !== editable) chart.set("editable", editable);
 
         // Set data last, and category data before series data.
         chart.yAxis.data.setAll(

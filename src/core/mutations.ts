@@ -156,6 +156,11 @@ const daysPerWeek = (cal: Calendar): number => (cal.excludeWeekends ? 5 : 7);
  * keeps the same real span: a 10-working-day task becomes 2 when you switch
  * to weeks.
  */
+/** Freezes the plan as an agreed baseline, or releases it. */
+export const setLocked =
+  (locked: boolean): Mutation =>
+  (doc) => ({ ...doc, locked });
+
 export const setDurationUnit =
   (durationUnit: Calendar["durationUnit"]): Mutation =>
   (doc) => {

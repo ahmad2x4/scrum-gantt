@@ -14,7 +14,12 @@ export function emptyPlan(name: string): PlanDocument {
     schemaVersion: CURRENT_SCHEMA_VERSION,
     name,
     savedAt: new Date().toISOString(),
-    calendar: { durationUnit: "day", weekends: [0, 6], excludeWeekends: true, holidays: [] },
+    calendar: {
+      durationUnit: "day",
+      weekends: [0, 6],
+      excludeWeekends: true,
+      holidays: [],
+    },
     view: { sidebarWidth: "30%" },
     rows: [],
     tasks: [],
@@ -38,18 +43,28 @@ export function validate(raw: unknown): PlanDocument {
     throw new SchemaError("Missing or invalid field: schemaVersion.");
   }
   if (o.schemaVersion > CURRENT_SCHEMA_VERSION) {
-    throw new SchemaError("This plan was saved by a newer version of this app.");
+    throw new SchemaError(
+      "This plan was saved by a newer version of this app.",
+    );
   }
   const doc = migrate(o) as Record<string, any>;
 
-  if (typeof doc.name !== "string") throw new SchemaError("Missing or invalid field: name.");
-  if (!Array.isArray(doc.rows)) throw new SchemaError("Missing or invalid field: rows.");
-  if (!Array.isArray(doc.tasks)) throw new SchemaError("Missing or invalid field: tasks.");
+  if (typeof doc.name !== "string")
+    throw new SchemaError("Missing or invalid field: name.");
+  if (!Array.isArray(doc.rows))
+    throw new SchemaError("Missing or invalid field: rows.");
+  if (!Array.isArray(doc.tasks))
+    throw new SchemaError("Missing or invalid field: tasks.");
   if (typeof doc.calendar !== "object" || doc.calendar === null) {
     throw new SchemaError("Missing or invalid field: calendar.");
   }
   if (!UNITS.includes(doc.calendar.durationUnit)) {
-    throw new SchemaError(`Invalid calendar.durationUnit: expected one of ${UNITS.join(", ")}.`);
+    throw new SchemaError(
+      `Invalid calendar.durationUnit: expected one of ${UNITS.join(", ")}.`,
+    );
+  }
+  if (doc.locked !== undefined && typeof doc.locked !== "boolean") {
+    throw new SchemaError("Invalid field: locked must be true or false.");
   }
   if (typeof doc.view !== "object" || doc.view === null) {
     throw new SchemaError("Missing or invalid field: view.");

@@ -120,3 +120,49 @@ describe("zoom controls", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("lock", () => {
+  const lockedStore = () =>
+    createStore({ ...emptyPlan("Baseline"), locked: true });
+
+  it("offers to lock an unlocked plan", () => {
+    render(<Toolbar {...props(createStore(emptyPlan("p")))} />);
+    expect(screen.getByRole("button", { name: /lock plan/i })).toBeEnabled();
+  });
+
+  it("locks the plan on click, with no confirmation to get in the way", async () => {
+    const store = createStore(emptyPlan("p"));
+    render(<Toolbar {...props(store)} />);
+    await userEvent.click(screen.getByRole("button", { name: /lock plan/i }));
+    expect(store.get().locked).toBe(true);
+  });
+
+  it("shows the plan as locked once it is", () => {
+    render(<Toolbar {...props(lockedStore())} />);
+    expect(
+      screen.getByRole("button", { name: /unlock plan/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("asks the caller to unlock rather than doing it directly", async () => {
+    const onUnlock = vi.fn();
+    const store = lockedStore();
+    render(<Toolbar {...props(store, { onUnlock })} />);
+    await userEvent.click(screen.getByRole("button", { name: /unlock plan/i }));
+    expect(onUnlock).toHaveBeenCalled();
+    expect(store.get().locked).toBe(true);
+  });
+
+  it("disables the duration unit buttons while locked", () => {
+    render(<Toolbar {...props(lockedStore())} />);
+    expect(screen.getByRole("button", { name: "1d" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "1w" })).toBeDisabled();
+  });
+
+  it("leaves saving, opening and framing available while locked", () => {
+    render(<Toolbar {...props(lockedStore())} />);
+    for (const name of [/^open$/i, /^save$/i, /save as/i, /history/i, /fit/i]) {
+      expect(screen.getByRole("button", { name })).toBeEnabled();
+    }
+  });
+});

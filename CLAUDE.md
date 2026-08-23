@@ -96,6 +96,28 @@ A duration counted in days means *working* days when the calendar excludes
 weekends, so `setDurationUnit` converts at five days to the week, not seven: a
 ten-day sprint is two weeks.
 
+Switching to weeks **moves task starts to the start of their week**, because the
+chart plans at week granularity there, and switching back to days does not
+restore the original day. Durations survive the round trip exactly; starts do
+not. Any test asserting a lossless date round trip is wrong and will pass or
+fail depending on the time of day it runs.
+
+## Locking
+
+`PlanDocument.locked` freezes a plan as an agreed baseline. The gate is in
+`store.apply`, **not** in the UI, because the chart is an independent writer:
+it reports its own `valueschanged` events, which `ingest` turns into a
+document. Disabling buttons alone would leave that path open. Only `setLocked`
+passes `allowLocked`; `replace` is never gated, so opening and restoring still
+work.
+
+Restoring a revision keeps the plan's *current* lock rather than the revision's
+— otherwise restoring a revision from before the lock would quietly unlock the
+plan. `Save as…` writes an unlocked copy and must pass `allowLocked` for its
+own rename.
+
+Design: `docs/superpowers/specs/2026-08-23-plan-lock-design.md`.
+
 ## amCharts
 
 Coding rules live in `.claude/skills/amcharts5/`. Read `SKILL.md` (critical

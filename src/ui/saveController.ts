@@ -103,7 +103,13 @@ export function createSaveController(deps: {
 
     saveAs(name) {
       return run(async () => {
-        store.apply((d) => ({ ...d, name }));
+        // The copy is a branch off the baseline, so it arrives unlocked and
+        // workable; the original file in Drive keeps its locked content.
+        // allowLocked because the rename itself would otherwise be refused,
+        // silently writing the copy under the old name.
+        store.apply((d) => ({ ...d, name, locked: false }), {
+          allowLocked: true,
+        });
         await writeNew(name);
       });
     },
@@ -123,7 +129,14 @@ export function createSaveController(deps: {
         if (!status.fileId)
           throw new Error("Open a plan before restoring a revision.");
         const doc = await drive.readRevision(status.fileId, revisionId);
-        store.replace(doc);
+        // The lock is the plan's current state, not the revision's. A revision
+        // predating the lock carries locked: false, and adopting that would
+        // unlock the plan through the History dialog.
+        // Both directions: a revision saved while locked must not re-lock a
+        // plan the user has since unlocked either.
+        const locked = store.get().locked;
+        const { locked: _discarded, ...content } = doc;
+        store.replace(locked === undefined ? content : { ...content, locked });
         // Restoring is an edit, not a save: the user must confirm it forward,
         // and until they do it lives only in the draft.
         store.markDirty();

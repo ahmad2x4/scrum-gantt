@@ -34,6 +34,11 @@ export interface PlanDocument {
   name: string;
   savedAt: string;
   calendar: Calendar;
+  /**
+   * A locked plan is a frozen baseline: no mutation reaches it. Optional so
+   * plans saved before locking existed load as unlocked.
+   */
+  locked?: boolean;
   view: ViewState;
   rows: Row[];
   tasks: Task[];
